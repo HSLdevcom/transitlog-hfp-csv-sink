@@ -1,4 +1,5 @@
 plugins {
+    id 'com.github.johnrengelman.shadow' version '6.0.0'
     id 'org.jetbrains.kotlin.jvm' version '1.5.10'
 }
 
@@ -14,6 +15,19 @@ repositories {
             username = project.findProperty("github.user") ?: System.getenv("GITHUB_ACTOR")
             password = project.findProperty("github.token") ?: System.getenv("GITHUB_TOKEN")
         }
+    }
+}
+
+shadowJar {
+    archiveFileName ="${baseName}.${extension}"
+}
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'fi.hsl.transitlog.hfp.MainKt',
+                'Implementation-Version': project.version
+        )
     }
 }
 
