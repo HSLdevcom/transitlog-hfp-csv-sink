@@ -13,9 +13,15 @@ import org.apache.pulsar.client.api.MessageId
 class MessageHandler(private val pulsarApplicationContext: PulsarApplicationContext) : IMessageHandler {
     private val log = KotlinLogging.logger {}
 
+    private val connectionString = pulsarApplicationContext.config!!.getString("application.blobConnectionString")
+
+    private val blobUploader = BlobUploader(connectionString, pulsarApplicationContext.config!!.getString("application.blobContainer"))
+    //Uploads to private container that is not accessible without authentication
+    private val blobUploaderPrivate = BlobUploader(connectionString, pulsarApplicationContext.config!!.getString("application.blobContainerPrivate"))
+
     private val dwService = DWService(
-        BlobUploader("", ""),
-        BlobUploader("", ""),
+        blobUploader,
+        blobUploaderPrivate,
         ::ack
     )
 
