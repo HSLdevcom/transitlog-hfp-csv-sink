@@ -6,7 +6,7 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberProperties
 
 enum class EventType(private val dataClass: KClass<*>) {
-    VehiclePosition(Event::class), StopEvent(Event::class), LightPriorityEvent(LightPriorityEvent::class), OtherEvent(Event::class), UnsignedEvent(Event::class);
+    VehiclePosition(fi.hsl.transitlog.hfp.domain.Event::class), StopEvent(fi.hsl.transitlog.hfp.domain.Event::class), LightPriorityEvent(fi.hsl.transitlog.hfp.domain.LightPriorityEvent::class), OtherEvent(fi.hsl.transitlog.hfp.domain.Event::class), UnsignedEvent(fi.hsl.transitlog.hfp.domain.Event::class);
 
     val csvHeader by lazy { dataClass.declaredMemberProperties.sortedBy { it.name }.map { it.name } }
 
