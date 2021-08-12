@@ -1,3 +1,5 @@
+package fi.hsl.transitlog.hfp
+
 import fi.hsl.common.config.ConfigParser
 import fi.hsl.common.pulsar.PulsarApplication
 import fi.hsl.transitlog.hfp.MessageHandler
