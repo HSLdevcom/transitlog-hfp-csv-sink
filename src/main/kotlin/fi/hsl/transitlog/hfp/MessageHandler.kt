@@ -43,6 +43,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
                 dwService.addEvent(hfpData, msg.messageId)
             } catch (e: Exception) {
                 log.warn(e) { "Failed to handle message" }
+                e.printStackTrace()
             }
         } else {
             log.warn {
