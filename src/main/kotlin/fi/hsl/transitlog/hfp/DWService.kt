@@ -34,6 +34,9 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
         }
         .scheduleAtFixedRate({
             val dwFilesCopy = dwFiles.toMap()
+
+            log.info { "Uploading files to blob storage" }
+
             for ((key: String, dwFile: DWFile) in dwFilesCopy.entries) {
                 if (dwFile.isReadyForUpload()) {
                     try {
@@ -56,6 +59,8 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
                     }
                 }
             }
+
+            log.info { "Done uploading files to blob storage" }
         }, initialDelay, Duration.ofHours(1).seconds, TimeUnit.SECONDS)
     }
 
