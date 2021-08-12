@@ -6,6 +6,8 @@ import mu.KotlinLogging
 private val log = KotlinLogging.logger {}
 
 fun main(vararg args: String) {
+    log.info { "Starting application" }
+
     val config = ConfigParser.createConfig()
 
     try {
@@ -14,6 +16,7 @@ fun main(vararg args: String) {
         val messageHandler = MessageHandler(app.context)
 
         app.launchWithHandler(messageHandler)
+        log.info { "Started handling messages" }
     } catch (e: Exception) {
         log.error(e) { "Exception at main" }
     }
