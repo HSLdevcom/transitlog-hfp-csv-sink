@@ -44,7 +44,7 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
                         dwFile.close()
 
                         //Upload file to Blob Storage
-                        (if (dwFile.private) { privateBlobUploader } else { blobUploader }).uploadFromFile(dwFile.path)
+                        (if (dwFile.private) { privateBlobUploader } else { blobUploader }).uploadFromFile(dwFile.path, blobName = dwFile.blobName)
                         //Acknowledge all messages that were in the file
                         msgIds[dwFile.path]!!.forEach(msgAcknowledger)
 
