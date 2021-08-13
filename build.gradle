@@ -31,9 +31,15 @@ jar {
     }
 }
 
+test {
+    useJUnitPlatform()
+}
+
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
     implementation "org.jetbrains.kotlin:kotlin-reflect:1.5.21"
+
+    testImplementation 'org.jetbrains.kotlin:kotlin-test'
 
     implementation "io.github.microutils:kotlin-logging:1.6.22"
 
