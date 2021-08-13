@@ -16,7 +16,7 @@ class BlobUploader(connectionString: String, blobContainer: String) {
         if (blobServiceClient.getBlobContainerClient(blobContainer).exists()) {
             blobServiceClient.getBlobContainerClient(blobContainer)
         } else {
-            blobServiceClient.getBlobContainerClient(blobContainer)
+            blobServiceClient.createBlobContainer(blobContainer)
         }
     }
 
