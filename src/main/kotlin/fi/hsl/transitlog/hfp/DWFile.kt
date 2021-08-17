@@ -78,6 +78,9 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
      */
     override fun close() {
         open = false
-        csvPrinter.close(true)
+        //Avoid IOException if trying to close the file more than once
+        if (open) {
+            csvPrinter.close(true)
+        }
     }
 }
