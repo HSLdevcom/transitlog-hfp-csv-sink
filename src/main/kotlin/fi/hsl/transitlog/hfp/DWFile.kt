@@ -2,6 +2,7 @@ package fi.hsl.transitlog.hfp
 
 import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.transitlog.hfp.domain.EventType
+import mu.KotlinLogging
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVPrinter
@@ -17,7 +18,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
 
-class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, csvHeader: List<String>) : AutoCloseable {
+class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>) : AutoCloseable {
     companion object {
         private val HFP_TIMEZONE = ZoneId.of("Europe/Helsinki")
         private val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
@@ -51,6 +52,8 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
         }
     }
 
+    private val log = KotlinLogging.logger {}
+
     private val csvPrinter = CSVPrinter(
         OutputStreamWriter(BufferedOutputStream(ZstdCompressorOutputStream(Files.newOutputStream(path)), 65536), StandardCharsets.UTF_8),
         CSVFormat.RFC4180.withHeader(*csvHeader.toTypedArray())
@@ -65,6 +68,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
 
         val properties = event::class.declaredMemberProperties.sortedBy { it.name }
         val values = properties.map { (it as KProperty1<Any, Any?>).get(event)?.toString() ?: "" }
+
+        if (values.size != csvHeader.size) {
+            log.warn { "CSV record has different amount of values than CSV header. Record: '${values.joinToString(",")}', header: '${csvHeader.joinToString(",")}'" }
+        }
 
         csvPrinter.printRecord(values)
         lastModified = System.nanoTime()
