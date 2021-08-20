@@ -84,10 +84,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
      * Closes file for writing. After this function has been invoked, writeEvent cannot be used
      */
     override fun close() {
-        open = false
         //Avoid IOException if trying to close the file more than once
         if (open) {
             csvPrinter.close(true)
         }
+        open = false
     }
 }
