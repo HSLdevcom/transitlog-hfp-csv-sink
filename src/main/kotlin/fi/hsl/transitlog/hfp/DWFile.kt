@@ -64,7 +64,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
         }
 
         val properties = event::class.declaredMemberProperties.sortedBy { it.name }
-        val values = properties.map { (it as KProperty1<Any, Any?>).get(event).toString() }
+        val values = properties.map { (it as KProperty1<Any, Any?>).get(event)?.toString() ?: "" }
 
         csvPrinter.printRecord(values)
         lastModified = System.nanoTime()
