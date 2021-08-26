@@ -31,7 +31,7 @@ fun main(vararg args: String) {
         app.context.healthServer?.addCheck {
             val timeSinceLastAcknowledged = Duration.ofNanos(System.nanoTime() - messageHandler.getLastAcknowledgedMessageTime())
             //Messages should be acknowledged hourly when files are uploaded
-            val healthy = timeSinceLastAcknowledged < Duration.ofMinutes(90)
+            val healthy = timeSinceLastAcknowledged < Duration.ofHours(2)
 
             if (!healthy) {
                 log.warn { "Service unhealthy, last message acknowledged ${timeSinceLastAcknowledged.toMinutes()} minutes ago" }
