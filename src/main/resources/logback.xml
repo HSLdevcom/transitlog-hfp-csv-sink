@@ -18,6 +18,7 @@
     <logger name="org.apache.pulsar" level="info" additivity="false">
         <appender-ref ref="stdout" />
     </logger>
+    <logger name="org.apache.pulsar.client.impl" level="off"/>
     <root level="warn">
         <appender-ref ref="stdout" />
     </root>
