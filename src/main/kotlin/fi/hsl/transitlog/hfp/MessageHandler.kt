@@ -25,6 +25,13 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
         ::ack
     )
 
+    private var lastHandledMessageTime = System.nanoTime()
+    private var lastAcknowledgedMessageTime = System.nanoTime()
+
+    fun getLastHandledMessageTime(): Long = lastHandledMessageTime
+
+    fun getLastAcknowledgedMessageTime(): Long = lastAcknowledgedMessageTime
+
     private fun ack(messageId: MessageId) {
         pulsarApplicationContext.consumer!!.acknowledgeAsync(messageId)
             .exceptionally { throwable ->
@@ -32,7 +39,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
                 log.error("Failed to ack Pulsar message", throwable)
                 null
             }
-            .thenRun {}
+            .thenRun { lastAcknowledgedMessageTime = System.nanoTime() }
     }
 
     override fun handleMessage(msg: Message<Any>) {
@@ -41,6 +48,8 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
                 val hfpData = Hfp.Data.parseFrom(msg.data)
 
                 dwService.addEvent(hfpData, msg.messageId)
+
+                lastHandledMessageTime = System.nanoTime()
             } catch (e: Exception) {
                 log.warn(e) { "Failed to handle message" }
                 e.printStackTrace()
