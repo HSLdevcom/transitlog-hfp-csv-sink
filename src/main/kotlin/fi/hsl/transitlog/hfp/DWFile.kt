@@ -78,7 +78,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     }
 
     //File is ready for uploading if it has not been modified for 30 minutes
-    fun isReadyForUpload(): Boolean = Duration.ofNanos(System.nanoTime() - lastModified) > Duration.ofMinutes(30)
+    fun isReadyForUpload(): Boolean = Duration.ofNanos(System.nanoTime() - lastModified) > Duration.ofMinutes(60)
 
     /**
      * Closes file for writing. After this function has been invoked, writeEvent cannot be used
