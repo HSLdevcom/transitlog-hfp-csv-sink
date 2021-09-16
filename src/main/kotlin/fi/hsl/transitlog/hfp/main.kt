@@ -17,10 +17,16 @@ fun main(vararg args: String) {
 
         val messageHandler = MessageHandler(app.context)
 
+        //Service is considered unhealthy if no message is received within this duration
+        val unhealthyIfNoMessage = app.context.config!!.getDuration("application.unhealthyIfNoMessage")
+        //Service is considered unhealthy if no message is acknowledged within this duration
+        //Use long enough duration for this value, files contain data for one hour and are uploaded after they have not been modified for one hour
+        val unhealthyIfNoAck = app.context.config!!.getDuration("application.unhealthyIfNoAck")
+
         app.context.healthServer?.addCheck {
             val timeSinceLastHandled = Duration.ofNanos(System.nanoTime() - messageHandler.getLastHandledMessageTime())
             //There should be new messages coming in every second
-            val healthy = timeSinceLastHandled < Duration.ofMinutes(15)
+            val healthy = timeSinceLastHandled < unhealthyIfNoMessage
 
             if (!healthy) {
                 log.warn { "Service unhealthy, last message handled ${timeSinceLastHandled.toMinutes()} minutes ago" }
@@ -31,7 +37,7 @@ fun main(vararg args: String) {
         app.context.healthServer?.addCheck {
             val timeSinceLastAcknowledged = Duration.ofNanos(System.nanoTime() - messageHandler.getLastAcknowledgedMessageTime())
             //Messages should be acknowledged hourly when files are uploaded
-            val healthy = timeSinceLastAcknowledged < Duration.ofHours(2)
+            val healthy = timeSinceLastAcknowledged < unhealthyIfNoAck
 
             if (!healthy) {
                 log.warn { "Service unhealthy, last message acknowledged ${timeSinceLastAcknowledged.toMinutes()} minutes ago" }
