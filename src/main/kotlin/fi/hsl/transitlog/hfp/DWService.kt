@@ -13,6 +13,7 @@ import java.nio.file.Path
 import java.time.Duration
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -21,7 +22,7 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
 
     private val executorService = Executors.newScheduledThreadPool(2, DaemonThreadFactory)
 
-    private val messageQueue = mutableListOf<Pair<Hfp.Data, MessageId>>()
+    private val messageQueue = LinkedList<Pair<Hfp.Data, MessageId>>()
 
     private inline fun <R> useMessageQueue(func: () -> R) = synchronized(messageQueue, func)
 
@@ -51,7 +52,7 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
                     dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
                 }
 
-                val msgIdList = msgIds.computeIfAbsent(dwFile.path) { mutableListOf() }
+                val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
                 msgIdList.add(msgId)
             }
         }, 15, 15, TimeUnit.SECONDS)
