@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     private val log = KotlinLogging.logger {}
 
-    private val executorService = Executors.newScheduledThreadPool(1, DaemonThreadFactory)
+    private val executorService = Executors.newScheduledThreadPool(2, DaemonThreadFactory)
 
     private val messageQueue = mutableListOf<Pair<Hfp.Data, MessageId>>()
 
