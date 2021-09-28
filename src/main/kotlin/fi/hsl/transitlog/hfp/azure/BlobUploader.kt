@@ -16,7 +16,7 @@ class BlobUploader(connectionString: String, blobContainer: String) {
         if (blobServiceClient.getBlobContainerClient(blobContainer).exists()) {
             blobServiceClient.getBlobContainerClient(blobContainer)
         } else {
-            blobServiceClient.getBlobContainerClient(blobContainer)
+            blobServiceClient.createBlobContainer(blobContainer)
         }
     }
 
@@ -24,6 +24,9 @@ class BlobUploader(connectionString: String, blobContainer: String) {
         log.info { "Uploading $path to blob $blobName" }
 
         val blobClient = blobContainerClient.getBlobClient(blobName)
+        if (blobClient.exists()) {
+            log.warn { "Blob $blobName already exists and it will be overwritten" }
+        }
 
         val blobOutputStream = blobClient.blockBlobClient.getBlobOutputStream(true)
         BufferedOutputStream(blobOutputStream, BUFFER_SIZE).use {

@@ -31,15 +31,22 @@ jar {
     }
 }
 
+test {
+    useJUnitPlatform()
+}
+
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
     implementation "org.jetbrains.kotlin:kotlin-reflect:1.5.21"
+
+    testImplementation 'org.jetbrains.kotlin:kotlin-test'
 
     implementation "io.github.microutils:kotlin-logging:1.6.22"
 
     implementation "fi.hsl:transitdata-common:1.3.25"
 
     implementation "com.azure:azure-storage-blob:12.13.0"
+    implementation "io.netty:netty-tcnative-boringssl-static:2.0.39.Final"
 
     implementation "org.apache.commons:commons-csv:1.8"
     implementation "org.apache.commons:commons-compress:1.21"
