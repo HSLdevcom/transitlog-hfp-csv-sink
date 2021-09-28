@@ -20,6 +20,10 @@ import java.util.concurrent.TimeUnit
 class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     private val log = KotlinLogging.logger {}
 
+    //Count how many times we have tried to upload data but there was nothing to upload
+    //If this value grows too high, print debug information
+    private var noUploadCounter = 0
+
     private val executorService = Executors.newScheduledThreadPool(2, DaemonThreadFactory)
 
     private val messageQueue = LinkedList<Pair<Hfp.Data, MessageId>>()
@@ -66,6 +70,8 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
 
             log.info { "Uploading files to blob storage" }
 
+            var filesUploaded = 0
+
             for ((key: String, dwFile: DWFile) in dwFilesCopy.entries) {
                 if (dwFile.isReadyForUpload()) {
                     try {
@@ -85,12 +91,25 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
                         dwFiles.remove(key)
 
                         Files.delete(dwFile.path)
+
+                        filesUploaded++
                     } catch (e: Exception) {
                         log.error(e) {
                             "Failed to upload file to Blob Storage"
                         }
                     }
                 }
+            }
+
+            if (filesUploaded == 0) { noUploadCounter++ } else { noUploadCounter = 0 }
+
+            if (noUploadCounter > 2) {
+                val filesList = dwFilesCopy.values.joinToString("\n") {
+                    "${it.path} (${it.blobName}), last modified ${
+                        it.getLastModifiedAgo().toMinutes()
+                    }min ago"
+                }
+                log.warn { "No files have been uploaded in last 2 tries, list of files:\n${filesList}" }
             }
 
             log.info { "Done uploading files to blob storage" }
