@@ -34,9 +34,9 @@ class BlobUploader(connectionString: String, blobContainer: String) {
         }
 
         if (metadata.isNotEmpty()) {
-            log.info { "Adding metadata to blob $blobName (${metadata})" }
-            blobClient.setMetadata(metadata)
-            log.debug { "Added metadata to blob $blobName" }
+            log.info { "Adding tags to blob $blobName (${metadata})" }
+            blobClient.tags = metadata
+            log.debug { "Added tags to blob $blobName" }
         }
 
         log.info { "Done uploading $path" }
