@@ -13,10 +13,12 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 import java.time.Instant
+import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.jvm.jvmErasure
 
 class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>) : AutoCloseable {
     companion object {
@@ -61,6 +63,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var open: Boolean = true
     private var lastModified: Long = System.nanoTime()
 
+    private var rowCount = 0
+    private var minTst: OffsetDateTime? = null
+    private var maxTst: OffsetDateTime? = null
+
     fun writeEvent(event: Any) {
         if (!open) {
             throw IllegalStateException("File has been closed for writing")
@@ -75,10 +81,39 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
 
         csvPrinter.printRecord(values)
         lastModified = System.nanoTime()
+        rowCount++
+
+        //TODO: think about better way to do this...
+        val maybeTstProperty = properties.find { it.name == "tst" && it.returnType.jvmErasure.java == OffsetDateTime::class.java }
+        if (maybeTstProperty != null) {
+            val tst = (maybeTstProperty as KProperty1<Any, OffsetDateTime>).get(event)
+            if (minTst == null || tst < minTst) {
+                minTst = tst
+            }
+            if (maxTst == null || tst > maxTst) {
+                maxTst = tst
+            }
+        }
     }
 
     //File is ready for uploading if it has not been modified for 60 minutes (we assume that HFP data is not delayed by more than one hour)
     fun isReadyForUpload(): Boolean = Duration.ofNanos(System.nanoTime() - lastModified) > Duration.ofMinutes(60)
+
+    /**
+     * Returns metadata about the file contents. Can be used as blob metadata
+     */
+    fun getMetadata(): Map<String, String> {
+        val metadata = mutableMapOf("row_count" to rowCount.toString())
+
+        if (minTst != null) {
+            metadata["min_tst"] = minTst!!.format(DateTimeFormatter.ISO_INSTANT)
+        }
+        if (maxTst != null) {
+            metadata["min_tst"] = maxTst!!.format(DateTimeFormatter.ISO_INSTANT)
+        }
+
+        return metadata.toMap()
+    }
 
     /**
      * Closes file for writing. After this function has been invoked, writeEvent cannot be used
