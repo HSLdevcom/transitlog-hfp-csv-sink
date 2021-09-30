@@ -2,6 +2,8 @@ package fi.hsl.transitlog.hfp
 
 import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.transitlog.hfp.domain.EventType
+import fi.hsl.transitlog.hfp.domain.IEvent
+import fi.hsl.transitlog.hfp.utils.Deduplicator
 import mu.KotlinLogging
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
 import org.apache.commons.csv.CSVFormat
@@ -11,14 +13,10 @@ import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.Duration
-import java.time.Instant
-import java.time.OffsetDateTime
-import java.time.ZoneId
+import java.time.*
 import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
-import kotlin.reflect.jvm.jvmErasure
 
 class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>) : AutoCloseable {
     companion object {
@@ -67,37 +65,46 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var minTst: OffsetDateTime? = null
     private var maxTst: OffsetDateTime? = null
 
-    fun writeEvent(event: Any) {
+    //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
+    private val deduplicator = Deduplicator<IEvent, String> { ievent -> "${ievent.eventType.toString()}_${ievent.tst}_${ievent.uniqueVehicleId}" }
+
+    fun <E : IEvent> writeEvent(event: E) {
         if (!open) {
             throw IllegalStateException("File has been closed for writing")
         }
 
-        val properties = event::class.declaredMemberProperties.sortedBy { it.name }
-        val values = properties.map { (it as KProperty1<Any, Any?>).get(event)?.toString() ?: "" }
+        deduplicator.consumeOnlyOnce(event) { event ->
+            val properties = event::class.declaredMemberProperties.sortedBy { it.name }
+            val values = properties.map { (it as KProperty1<Any, Any?>).get(event)?.toString() ?: "" }
 
-        if (values.size != csvHeader.size) {
-            log.warn { "CSV record has different amount of values than CSV header. Record: '${values.joinToString(",")}', header: '${csvHeader.joinToString(",")}'" }
-        }
-
-        csvPrinter.printRecord(values)
-        lastModified = System.nanoTime()
-        rowCount++
-
-        //TODO: think about better way to do this...
-        val maybeTstProperty = properties.find { it.name == "tst" && it.returnType.jvmErasure.java == OffsetDateTime::class.java }
-        if (maybeTstProperty != null) {
-            val tst = (maybeTstProperty as KProperty1<Any, OffsetDateTime>).get(event)
-            if (minTst == null || tst < minTst) {
-                minTst = tst
+            if (values.size != csvHeader.size) {
+                log.warn {
+                    "CSV record has different amount of values than CSV header. Record: '${values.joinToString(",")}', header: '${
+                        csvHeader.joinToString(
+                            ","
+                        )
+                    }'"
+                }
             }
-            if (maxTst == null || tst > maxTst) {
-                maxTst = tst
+
+            csvPrinter.printRecord(values)
+            lastModified = System.nanoTime()
+
+            rowCount++
+            if (minTst == null || event.tst < minTst) {
+                minTst = event.tst
+            }
+            if (maxTst == null || event.tst > maxTst) {
+                maxTst = event.tst
             }
         }
     }
 
-    //File is ready for uploading if it has not been modified for 60 minutes (we assume that HFP data is not delayed by more than one hour)
-    fun isReadyForUpload(): Boolean = Duration.ofNanos(System.nanoTime() - lastModified) > Duration.ofMinutes(60)
+    fun getLastModifiedAgo(): Duration = Duration.ofNanos(System.nanoTime() - lastModified)
+
+    //File is ready for uploading if it has not been modified for 45 minutes (we assume that HFP data is not delayed by more than one hour)
+    //TODO: this should be configurable
+    fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(45)
 
     /**
      * Returns metadata about the file contents. Can be used as blob metadata
