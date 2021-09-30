@@ -64,6 +64,8 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var rowCount = 0
     private var minTst: OffsetDateTime? = null
     private var maxTst: OffsetDateTime? = null
+    private var minOday: LocalDate? = null
+    private var maxOday: LocalDate? = null
 
     //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
     private val deduplicator = Deduplicator<IEvent, String> { ievent -> "${ievent.eventType.toString()}_${ievent.tst}_${ievent.uniqueVehicleId}" }
@@ -97,6 +99,12 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             if (maxTst == null || event.tst > maxTst) {
                 maxTst = event.tst
             }
+            if (minOday == null || (event.oday != null && event.oday!! < minOday)) {
+                minOday = event.oday
+            }
+            if (maxOday == null || (event.oday != null && event.oday!! > maxOday)) {
+                maxOday = event.oday
+            }
         }
     }
 
@@ -117,6 +125,12 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
         }
         if (maxTst != null) {
             metadata["min_tst"] = maxTst!!.format(DateTimeFormatter.ISO_INSTANT)
+        }
+        if (minOday != null) {
+            metadata["min_oday"] = minOday!!.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        }
+        if (maxOday != null) {
+            metadata["max_oday"] = maxOday!!.format(DateTimeFormatter.ISO_LOCAL_DATE)
         }
 
         return metadata.toMap()
