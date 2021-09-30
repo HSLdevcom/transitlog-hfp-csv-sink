@@ -2,6 +2,8 @@ package fi.hsl.transitlog.hfp
 
 import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.transitlog.hfp.domain.EventType
+import fi.hsl.transitlog.hfp.domain.IEvent
+import fi.hsl.transitlog.hfp.utils.Deduplicator
 import mu.KotlinLogging
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
 import org.apache.commons.csv.CSVFormat
@@ -61,20 +63,25 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var open: Boolean = true
     private var lastModified: Long = System.nanoTime()
 
-    fun writeEvent(event: Any) {
+    //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
+    private val deduplicator = Deduplicator<IEvent, String> { ievent -> "${ievent.eventType.toString()}_${ievent.tst}_${ievent.uniqueVehicleId}" }
+
+    fun <E : IEvent> writeEvent(event: E) {
         if (!open) {
             throw IllegalStateException("File has been closed for writing")
         }
 
-        val properties = event::class.declaredMemberProperties.sortedBy { it.name }
-        val values = properties.map { (it as KProperty1<Any, Any?>).get(event)?.toString() ?: "" }
+        deduplicator.consumeOnlyOnce(event) { event ->
+            val properties = event::class.declaredMemberProperties.sortedBy { it.name }
+            val values = properties.map { (it as KProperty1<Any, Any?>).get(event)?.toString() ?: "" }
 
-        if (values.size != csvHeader.size) {
-            log.warn { "CSV record has different amount of values than CSV header. Record: '${values.joinToString(",")}', header: '${csvHeader.joinToString(",")}'" }
+            if (values.size != csvHeader.size) {
+                log.warn { "CSV record has different amount of values than CSV header. Record: '${values.joinToString(",")}', header: '${csvHeader.joinToString(",")}'" }
+            }
+
+            csvPrinter.printRecord(values)
+            lastModified = System.nanoTime()
         }
-
-        csvPrinter.printRecord(values)
-        lastModified = System.nanoTime()
     }
 
     fun getLastModifiedAgo(): Duration = Duration.ofNanos(System.nanoTime() - lastModified)
