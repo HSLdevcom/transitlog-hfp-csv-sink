@@ -13,9 +13,7 @@ import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.Duration
-import java.time.Instant
-import java.time.ZoneId
+import java.time.*
 import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
@@ -63,6 +61,12 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var open: Boolean = true
     private var lastModified: Long = System.nanoTime()
 
+    private var rowCount = 0
+    private var minTst: OffsetDateTime? = null
+    private var maxTst: OffsetDateTime? = null
+    private var minOday: LocalDate? = null
+    private var maxOday: LocalDate? = null
+
     //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
     private val deduplicator = Deduplicator<IEvent, String> { ievent -> "${ievent.eventType.toString()}_${ievent.tst}_${ievent.uniqueVehicleId}" }
 
@@ -76,11 +80,31 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             val values = properties.map { (it as KProperty1<Any, Any?>).get(event)?.toString() ?: "" }
 
             if (values.size != csvHeader.size) {
-                log.warn { "CSV record has different amount of values than CSV header. Record: '${values.joinToString(",")}', header: '${csvHeader.joinToString(",")}'" }
+                log.warn {
+                    "CSV record has different amount of values than CSV header. Record: '${values.joinToString(",")}', header: '${
+                        csvHeader.joinToString(
+                            ","
+                        )
+                    }'"
+                }
             }
 
             csvPrinter.printRecord(values)
             lastModified = System.nanoTime()
+
+            rowCount++
+            if (minTst == null || event.tst < minTst) {
+                minTst = event.tst
+            }
+            if (maxTst == null || event.tst > maxTst) {
+                maxTst = event.tst
+            }
+            if (minOday == null || (event.oday != null && event.oday!! < minOday)) {
+                minOday = event.oday
+            }
+            if (maxOday == null || (event.oday != null && event.oday!! > maxOday)) {
+                maxOday = event.oday
+            }
         }
     }
 
@@ -89,6 +113,28 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     //File is ready for uploading if it has not been modified for 45 minutes (we assume that HFP data is not delayed by more than one hour)
     //TODO: this should be configurable
     fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(45)
+
+    /**
+     * Returns metadata about the file contents. Can be used as blob metadata
+     */
+    fun getMetadata(): Map<String, String> {
+        val metadata = mutableMapOf("row_count" to rowCount.toString())
+
+        if (minTst != null) {
+            metadata["min_tst"] = minTst!!.format(DateTimeFormatter.ISO_INSTANT)
+        }
+        if (maxTst != null) {
+            metadata["min_tst"] = maxTst!!.format(DateTimeFormatter.ISO_INSTANT)
+        }
+        if (minOday != null) {
+            metadata["min_oday"] = minOday!!.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        }
+        if (maxOday != null) {
+            metadata["max_oday"] = maxOday!!.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        }
+
+        return metadata.toMap()
+    }
 
     /**
      * Closes file for writing. After this function has been invoked, writeEvent cannot be used

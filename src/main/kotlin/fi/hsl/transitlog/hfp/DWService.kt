@@ -79,7 +79,7 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
                         dwFile.close()
 
                         //Upload file to Blob Storage
-                        (if (dwFile.private) { privateBlobUploader } else { blobUploader }).uploadFromFile(dwFile.path, blobName = dwFile.blobName)
+                        (if (dwFile.private) { privateBlobUploader } else { blobUploader }).uploadFromFile(dwFile.path, blobName = dwFile.blobName, metadata = dwFile.getMetadata())
                         
                         //Acknowledge all messages that were in the file
                         val ackMsgIds = msgIds[dwFile.path]!!
