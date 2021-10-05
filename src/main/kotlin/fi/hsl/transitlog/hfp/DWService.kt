@@ -17,7 +17,7 @@ import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
+class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     private val log = KotlinLogging.logger {}
 
     //Count how many times we have tried to upload data but there was nothing to upload
@@ -116,7 +116,7 @@ class DWService(blobUploader: BlobUploader, privateBlobUploader: BlobUploader, m
         }, initialDelay, Duration.ofHours(1).seconds, TimeUnit.SECONDS)
     }
 
-    private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData) }
+    private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory) }
 
     fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = useMessageQueue { messageQueue.add(hfpData to msgId) }
 }

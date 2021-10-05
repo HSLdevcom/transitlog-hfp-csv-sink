@@ -9,6 +9,9 @@ import fi.hsl.transitlog.hfp.azure.BlobUploader
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.MessageId
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 
 class MessageHandler(private val pulsarApplicationContext: PulsarApplicationContext) : IMessageHandler {
     private val log = KotlinLogging.logger {}
@@ -19,7 +22,12 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
     //Uploads to private container that is not accessible without authentication
     private val blobUploaderPrivate = BlobUploader(connectionString, pulsarApplicationContext.config!!.getString("application.blobContainerPrivate"))
 
+    private val dataDirectory: Path = Paths.get("hfp").also {
+        Files.createDirectories(it)
+    }
+
     private val dwService = DWService(
+        dataDirectory,
         blobUploader,
         blobUploaderPrivate,
         ::ack
