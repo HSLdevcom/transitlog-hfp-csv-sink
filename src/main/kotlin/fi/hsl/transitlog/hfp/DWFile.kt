@@ -41,9 +41,14 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
 
         private fun Hfp.Topic.isPrivateData(): Boolean = journeyType != Hfp.Topic.JourneyType.journey
 
-        fun createDWFile(hfpData: Hfp.Data): DWFile {
-            //TODO: temp files will be located in /tmp which is usually located in memory, is this a problem?
-            val path = Files.createTempFile("hfp", ".csv.zst")
+        /**
+         * @param dataDirectory Directory where the file will be stored
+         */
+        fun createDWFile(hfpData: Hfp.Data, dataDirectory: Path = Files.createTempDirectory("hfp")): DWFile {
+            val blobName = createBlobName(hfpData)
+
+            val path = dataDirectory.resolve(blobName)
+            Files.createDirectories(path.parent)
 
             //Use OtherEvent as default in case new event types are added
             val eventType = EventType.getEventType(hfpData.topic) ?: EventType.OtherEvent
