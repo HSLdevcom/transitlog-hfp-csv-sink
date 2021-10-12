@@ -129,7 +129,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             metadata["min_tst"] = minTst!!.format(DateTimeFormatter.ISO_INSTANT)
         }
         if (maxTst != null) {
-            metadata["min_tst"] = maxTst!!.format(DateTimeFormatter.ISO_INSTANT)
+            metadata["max_tst"] = maxTst!!.format(DateTimeFormatter.ISO_INSTANT)
         }
         if (minOday != null) {
             metadata["min_oday"] = minOday!!.format(DateTimeFormatter.ISO_LOCAL_DATE)
