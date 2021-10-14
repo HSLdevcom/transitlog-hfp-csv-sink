@@ -5,6 +5,7 @@ import fi.hsl.transitlog.hfp.domain.EventType
 import fi.hsl.transitlog.hfp.domain.IEvent
 import fi.hsl.transitlog.hfp.utils.Deduplicator
 import mu.KotlinLogging
+import org.apache.commons.codec.digest.MurmurHash3
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVPrinter
@@ -82,7 +83,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var maxOday: LocalDate? = null
 
     //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
-    private val deduplicator = Deduplicator<IEvent, String> { ievent -> "${ievent.eventType.toString()}_${ievent.tst}_${ievent.uniqueVehicleId}" }
+    private val deduplicator = Deduplicator<IEvent, Long> { ievent ->
+        val bytes = (ievent.eventType?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf()) + ievent.tst.toInstant().toEpochMilli().toBigInteger().toByteArray() + (ievent.uniqueVehicleId?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf())
+        return@Deduplicator MurmurHash3.hash128x64(bytes)[0]
+    }
 
     fun <E : IEvent> writeEvent(event: E) {
         if (!open) {
