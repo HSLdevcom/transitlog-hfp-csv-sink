@@ -18,28 +18,37 @@ import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
 
-class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>) : AutoCloseable {
+class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType) : AutoCloseable {
     companion object {
         private val HFP_TIMEZONE = ZoneId.of("Europe/Helsinki")
-        private val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
+        private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
+
+        //Events that contain private data and that should be always uploaded to private blob container
+        private val PRIVATE_EVENTS = setOf(Hfp.Topic.EventType.DA, Hfp.Topic.EventType.DOUT, Hfp.Topic.EventType.BA, Hfp.Topic.EventType.BOUT)
 
         fun createBlobName(hfpData: Hfp.Data): String {
-            //Use private directory for events during deadrun journeys
+            //Append "_private" to files that contain private data
             val private = if (hfpData.topic.isPrivateData()) {
-                "private/"
+                "_private"
             } else {
                 ""
             }
 
-            //Use OtherEvent as default in case new event types are added
-            val eventType = EventType.getEventType(hfpData.topic) ?: EventType.OtherEvent
+            //Use MQTT received timestamp for file names (messages can get delayed and relying on tst timestamp could cause files to be overwritten)
+            val timestamp = Instant.ofEpochMilli(hfpData.topic.receivedAt).atZone(HFP_TIMEZONE).toLocalDateTime().format(DATE_HOUR_FORMATTER)
 
-            val timestamp = Instant.ofEpochSecond(hfpData.payload.tsi).atZone(HFP_TIMEZONE).toLocalDateTime().format(DATE_TIME_FORMATTER)
-
-            return "csv/$private$eventType/${timestamp}_${hfpData.topic.eventType}.csv.zst"
+            return "${timestamp}_${hfpData.topic.eventType}${private}.csv.zst"
         }
 
-        private fun Hfp.Topic.isPrivateData(): Boolean = journeyType != Hfp.Topic.JourneyType.journey
+        private fun Hfp.Topic.isPrivateData(): Boolean {
+            //If the journey type is not "journey", the data is always private
+            if (journeyType != Hfp.Topic.JourneyType.journey) {
+                return true
+            }
+
+            //Otherwise, check if the event type is private
+            return eventType in PRIVATE_EVENTS
+        }
 
         /**
          * @param dataDirectory Directory where the file will be stored
@@ -53,7 +62,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             //Use OtherEvent as default in case new event types are added
             val eventType = EventType.getEventType(hfpData.topic) ?: EventType.OtherEvent
 
-            return DWFile(path, hfpData.topic.isPrivateData(), createBlobName(hfpData), eventType.csvHeader)
+            return DWFile(path, hfpData.topic.isPrivateData(), blobName, eventType.csvHeader, hfpData.topic.eventType)
         }
     }
 
@@ -123,7 +132,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
      * Returns metadata about the file contents. Can be used as blob metadata
      */
     fun getMetadata(): Map<String, String> {
-        val metadata = mutableMapOf("row_count" to rowCount.toString())
+        val metadata = mutableMapOf(
+            "row_count" to rowCount.toString(),
+            "eventType" to eventType.toString()
+        )
 
         if (minTst != null) {
             metadata["min_tst"] = minTst!!.format(DateTimeFormatter.ISO_INSTANT)
