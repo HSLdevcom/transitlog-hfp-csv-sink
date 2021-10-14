@@ -36,7 +36,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
 
             val timestamp = Instant.ofEpochSecond(hfpData.payload.tsi).atZone(HFP_TIMEZONE).toLocalDateTime().format(DATE_TIME_FORMATTER)
 
-            return "csv/$private$eventType/$timestamp.csv.zst"
+            return "csv/$private$eventType/${timestamp}_${hfpData.topic.eventType}.csv.zst"
         }
 
         private fun Hfp.Topic.isPrivateData(): Boolean = journeyType != Hfp.Topic.JourneyType.journey
