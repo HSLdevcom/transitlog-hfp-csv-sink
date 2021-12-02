@@ -30,7 +30,7 @@ class DWFileTest {
                 .setNextStop("1")
                 .setOperatorId(1)
                 .setVehicleNumber(1)
-                .setReceivedAt(System.currentTimeMillis() / 1000L)
+                .setReceivedAt(testDataStartTime.plusSeconds(i.toLong()).toInstant().toEpochMilli())
                 .setRouteId("1")
                 .setStartTime("08:00")
                 .setTemporalType(Hfp.Topic.TemporalType.ongoing)
@@ -77,7 +77,7 @@ class DWFileTest {
 
             dwFile.close()
 
-            assertEquals("csv/VehiclePosition/2021-01-01T08.csv.zst", dwFile.blobName)
+            assertEquals("2021-01-01T08_VP.csv.zst", dwFile.blobName)
             assertFalse(dwFile.private)
             assertTrue(Files.size(dwFile.path) > 0, "File size greater than 0")
 
