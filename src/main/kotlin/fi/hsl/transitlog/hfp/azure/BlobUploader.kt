@@ -20,7 +20,7 @@ class BlobUploader(connectionString: String, blobContainer: String) {
         }
     }
 
-    fun uploadFromFile(path: Path, blobName: String = path.fileName.toString()): String {
+    fun uploadFromFile(path: Path, blobName: String = path.fileName.toString(), metadata: Map<String, String> = emptyMap()): String {
         log.info { "Uploading $path to blob $blobName" }
 
         val blobClient = blobContainerClient.getBlobClient(blobName)
@@ -33,7 +33,14 @@ class BlobUploader(connectionString: String, blobContainer: String) {
             Files.copy(path, it)
         }
 
+        if (metadata.isNotEmpty()) {
+            log.info { "Adding tags to blob $blobName (${metadata})" }
+            blobClient.tags = metadata
+            log.debug { "Added tags to blob $blobName" }
+        }
+
         log.info { "Done uploading $path" }
+
         return blobClient.blobName
     }
 }
