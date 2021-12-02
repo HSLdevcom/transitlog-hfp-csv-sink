@@ -70,7 +70,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private val log = KotlinLogging.logger {}
 
     private val csvPrinter = CSVPrinter(
-        OutputStreamWriter(BufferedOutputStream(ZstdCompressorOutputStream(Files.newOutputStream(path)), 65536), StandardCharsets.UTF_8),
+        OutputStreamWriter(BufferedOutputStream(ZstdCompressorOutputStream(Files.newOutputStream(path), 19), 65536), StandardCharsets.UTF_8),
         CSVFormat.RFC4180.withHeader(*csvHeader.toTypedArray())
     )
     private var open: Boolean = true
