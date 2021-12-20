@@ -17,7 +17,7 @@ import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
+class DWService(private val dataDirectory: Path, sink: CSVSink, privateSink: CSVSink, msgAcknowledger: (MessageId) -> Unit) {
     private val log = KotlinLogging.logger {}
 
     //Count how many times we have tried to upload data but there was nothing to upload
@@ -79,7 +79,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
                         dwFile.close()
 
                         //Upload file to Blob Storage
-                        (if (dwFile.private) { privateBlobUploader } else { blobUploader }).uploadFromFile(dwFile.path, blobName = dwFile.blobName, metadata = dwFile.getMetadata())
+                        (if (dwFile.private) { privateSink } else { sink }).upload(dwFile.path, name = dwFile.blobName, metadata = dwFile.getMetadata())
                         
                         //Acknowledge all messages that were in the file
                         val ackMsgIds = msgIds[dwFile.path]!!
