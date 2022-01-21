@@ -22,7 +22,7 @@ Currently used columns are listed here:
 | `hdg`                   | Integer     |
 | `headsign`              | String      |
 | `isOngoing`             | Boolean     |
-| `journeyStartTime`      | String      | In `hh:mm` format, hour can be over 24 for start times after midnight
+| `journeyStartTime`      | String      | `hh:mm`. The local time when the journey starts. Note that this value cannot be directly combined with value of `oday` to get the timestamp when the journey starts due to the way operating days are used for journeys starting after midnight.
 | `journeyType`           | String      |
 | `jrn`                   | Integer     |
 | `latitude`              | Float       |
@@ -32,7 +32,7 @@ Currently used columns are listed here:
 | `mode`                  | String      |
 | `nextStopId`            | String      |
 | `occu`                  | Integer     |
-| `oday`                  | String      | `yyyy-MM-dd`
+| `oday`                  | String      | `yyyy-MM-dd`. Note that this is not the true date when the journey is running, but instead the "schedule date" of the journey (e.g. a journey starting at 2 AM on `2022-01-02` would have `oday` value of `2022-01-01`).
 | `odo`                   | Float       |
 | `oper`                  | Integer     |
 | `ownerOperatorId`       | Integer     |
