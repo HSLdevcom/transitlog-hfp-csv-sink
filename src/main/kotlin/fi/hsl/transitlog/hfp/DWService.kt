@@ -63,7 +63,11 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
 
         //Setup task for uploading files to Azure every hour at 45min
         val now = ZonedDateTime.now()
-        val initialDelay = now.until(now.plusHours(1).withMinute(45), ChronoUnit.SECONDS)
+        var at45min = now.withMinute(45)
+        if (at45min.isBefore(now)) {
+            at45min = at45min.plusHours(1)
+        }
+        val initialDelay = now.until(at45min, ChronoUnit.SECONDS)
 
         executorService.scheduleAtFixedRate({
             val dwFilesCopy = dwFiles.toMap()
