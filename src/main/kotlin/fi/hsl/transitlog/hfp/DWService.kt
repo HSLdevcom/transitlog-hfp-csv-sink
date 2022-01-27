@@ -61,13 +61,16 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
             }
         }, 15, 15, TimeUnit.SECONDS)
 
-        //Setup task for uploading files to Azure every hour at 45min
+        //Setup task for uploading files to Azure every hour at 15min and 45min
         val now = ZonedDateTime.now()
-        var at45min = now.withMinute(45)
-        if (at45min.isBefore(now)) {
-            at45min = at45min.plusHours(1)
+        var initialUploadTime = now.withMinute(15)
+        if (initialUploadTime.isBefore(now)) {
+            initialUploadTime = initialUploadTime.plusMinutes(30)
+            if (initialUploadTime.isBefore(now)) {
+                initialUploadTime = initialUploadTime.plusMinutes(30)
+            }
         }
-        val initialDelay = now.until(at45min, ChronoUnit.SECONDS)
+        val initialDelay = now.until(initialUploadTime, ChronoUnit.SECONDS)
 
         executorService.scheduleAtFixedRate({
             val dwFilesCopy = dwFiles.toMap()
@@ -117,7 +120,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
             }
 
             log.info { "Done uploading files to blob storage" }
-        }, initialDelay, Duration.ofHours(1).seconds, TimeUnit.SECONDS)
+        }, initialDelay, Duration.ofMinutes(30).seconds, TimeUnit.SECONDS)
     }
 
     private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory) }
