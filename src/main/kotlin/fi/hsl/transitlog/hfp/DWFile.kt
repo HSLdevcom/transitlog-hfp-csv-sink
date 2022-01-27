@@ -128,9 +128,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
 
     fun getLastModifiedAgo(): Duration = Duration.ofNanos(System.nanoTime() - lastModified)
 
-    //File is ready for uploading if it has not been modified for 45 minutes (we assume that HFP data is not delayed by more than one hour)
+    //File is ready for uploading if it has not been modified for 25 minutes
+    //(files are created based on the time that the HFP message was _received_ and we assume that are not long gaps between messages)
     //TODO: this should be configurable
-    fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(45)
+    fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(25)
 
     /**
      * Returns metadata about the file contents. Can be used as blob metadata
