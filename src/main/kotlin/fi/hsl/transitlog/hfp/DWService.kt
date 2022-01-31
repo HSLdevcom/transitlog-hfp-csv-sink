@@ -90,9 +90,9 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
                         
                         //Acknowledge all messages that were in the file
                         val ackMsgIds = msgIds[dwFile.path]!!
-                        log.info { "Acknowledging ${ackMsgIds.size} messages" }
+                        log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
                         ackMsgIds.forEach(msgAcknowledger)
-                        log.info { "Messages acknowledged" }
+                        log.debug { "Messages written to ${dwFile.path} acknowledged" }
 
                         msgIds.remove(dwFile.path)
                         dwFiles.remove(key)
