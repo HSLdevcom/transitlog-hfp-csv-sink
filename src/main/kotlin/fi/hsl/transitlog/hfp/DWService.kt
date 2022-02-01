@@ -14,6 +14,7 @@ import java.time.Duration
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -31,7 +32,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
 
     private inline fun <R> useMessageQueue(func: () -> R) = synchronized(messageQueue, func)
 
-    private val msgIds = mutableMapOf<Path, MutableList<MessageId>>()
+    private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<String, DWFile>()
 
     init {
