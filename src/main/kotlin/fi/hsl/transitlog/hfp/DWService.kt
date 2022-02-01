@@ -51,6 +51,8 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
             //Write messages to files
             val futures = messagesByFile.map { (dwFile, messages) ->
                 fileWriterExecutorService.submit {
+                    val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
+
                     messages.forEach { (hfpData, msgId) ->
                         val eventType = EventType.getEventType(hfpData.topic)
                         if (eventType == EventType.LightPriorityEvent) {
@@ -58,8 +60,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
                         } else {
                             dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
                         }
-
-                        val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
+                        
                         msgIdList.add(msgId)
                     }
                 }
