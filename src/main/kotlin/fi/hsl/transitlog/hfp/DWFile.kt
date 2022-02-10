@@ -21,6 +21,8 @@ import kotlin.reflect.full.declaredMemberProperties
 
 class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType) : AutoCloseable {
     companion object {
+        private const val WRITE_BUFFER_SIZE = 32768
+
         private val HFP_TIMEZONE = ZoneId.of("Europe/Helsinki")
         private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
 
@@ -70,7 +72,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private val log = KotlinLogging.logger {}
 
     private val csvPrinter = CSVPrinter(
-        OutputStreamWriter(BufferedOutputStream(ZstdCompressorOutputStream(Files.newOutputStream(path)), 65536), StandardCharsets.UTF_8),
+        OutputStreamWriter(ZstdCompressorOutputStream(BufferedOutputStream(Files.newOutputStream(path), WRITE_BUFFER_SIZE)), StandardCharsets.UTF_8),
         CSVFormat.RFC4180.withHeader(*csvHeader.toTypedArray())
     )
     private var open: Boolean = true
