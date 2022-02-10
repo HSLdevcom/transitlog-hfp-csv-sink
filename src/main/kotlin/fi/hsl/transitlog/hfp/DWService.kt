@@ -6,7 +6,6 @@ import fi.hsl.transitlog.hfp.domain.Event
 import fi.hsl.transitlog.hfp.domain.EventType
 import fi.hsl.transitlog.hfp.domain.LightPriorityEvent
 import fi.hsl.transitlog.hfp.utils.DaemonThreadFactory
-import fi.hsl.transitlog.hfp.utils.MessageIdList
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.MessageId
 import java.nio.file.Files
@@ -33,7 +32,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
 
     private inline fun <R> useMessageQueue(func: () -> R) = synchronized(messageQueue, func)
 
-    private val msgIds = ConcurrentHashMap<Path, MessageIdList>()
+    private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<String, DWFile>()
 
     init {
@@ -52,7 +51,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
             //Write messages to files
             val futures = messagesByFile.map { (dwFile, messages) ->
                 fileWriterExecutorService.submit {
-                    val msgIdList = msgIds.computeIfAbsent(dwFile.path) { MessageIdList() }
+                    val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
 
                     messages.forEach { (hfpData, msgId) ->
                         val eventType = EventType.getEventType(hfpData.topic)
@@ -62,7 +61,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
                             dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
                         }
                         
-                        msgIdList.addId(msgId.toByteArray())
+                        msgIdList.add(msgId)
                     }
                 }
             }
@@ -99,10 +98,8 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
                         
                         //Acknowledge all messages that were in the file
                         val ackMsgIds = msgIds[dwFile.path]!!
-                        ackMsgIds.close()
-
                         log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
-                        ackMsgIds.forEachId { msgAcknowledger(MessageId.fromByteArray(it)) }
+                        ackMsgIds.forEach(msgAcknowledger)
                         log.debug { "Messages written to ${dwFile.path} acknowledged" }
 
                         msgIds.remove(dwFile.path)
