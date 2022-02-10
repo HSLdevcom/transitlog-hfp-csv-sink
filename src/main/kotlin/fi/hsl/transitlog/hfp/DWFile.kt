@@ -83,7 +83,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var maxOday: LocalDate? = null
 
     //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
-    private val deduplicator = Deduplicator<IEvent, Long> { ievent ->
+    private val deduplicator = Deduplicator<IEvent, Long>(if (eventType == Hfp.Topic.EventType.VP) { 1_000_000 } else { 10_000 }) { ievent ->
         val bytes = (ievent.eventType?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf()) + ievent.tst.toInstant().toEpochMilli().toBigInteger().toByteArray() + (ievent.uniqueVehicleId?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf())
         return@Deduplicator MurmurHash3.hash128x64(bytes)[0]
     }
