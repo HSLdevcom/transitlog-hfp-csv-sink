@@ -16,9 +16,14 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
+    companion object {
+        private const val MAX_QUEUE_SIZE = 1_500_000
+    }
+
     private val log = KotlinLogging.logger {}
 
     //Count how many times we have tried to upload data but there was nothing to upload
@@ -28,7 +33,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
     private val fileWriterExecutorService = Executors.newCachedThreadPool(DaemonThreadFactory)
     private val scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(DaemonThreadFactory)
 
-    private val messageQueue = LinkedList<Pair<Hfp.Data, MessageId>>()
+    private val messageQueue = LinkedBlockingQueue<Pair<Hfp.Data, MessageId>>(MAX_QUEUE_SIZE)
 
     private inline fun <R> useMessageQueue(func: () -> R) = synchronized(messageQueue, func)
 
@@ -40,9 +45,9 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
         scheduledExecutorService.scheduleWithFixedDelay({
             //Create copy of message queue and clear the queue
             val messages = useMessageQueue {
-                val copy = messageQueue.toList()
-                messageQueue.clear()
-                return@useMessageQueue copy
+                val msgList = mutableListOf<Pair<Hfp.Data, MessageId>>()
+                messageQueue.drainTo(msgList)
+                return@useMessageQueue msgList
             }
 
             log.info { "Writing ${messages.size} messages to CSV files" }
@@ -133,5 +138,5 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
 
     private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory) }
 
-    fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = useMessageQueue { messageQueue.add(hfpData to msgId) }
+    fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = useMessageQueue { messageQueue.put(hfpData to msgId) }
 }
