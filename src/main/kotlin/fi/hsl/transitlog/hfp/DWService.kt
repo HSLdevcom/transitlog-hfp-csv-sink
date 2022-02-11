@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 
 class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     companion object {
@@ -35,19 +36,21 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
 
     private val messageQueue = LinkedBlockingQueue<Pair<Hfp.Data, MessageId>>(MAX_QUEUE_SIZE)
 
-    private inline fun <R> useMessageQueue(func: () -> R) = synchronized(messageQueue, func)
-
     private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<String, DWFile>()
 
     init {
         //Setup task for writing events to files
         scheduledExecutorService.scheduleWithFixedDelay({
-            //Create copy of message queue and clear the queue
-            val messages = useMessageQueue {
-                val msgList = mutableListOf<Pair<Hfp.Data, MessageId>>()
-                messageQueue.drainTo(msgList)
-                return@useMessageQueue msgList
+            //Poll up to MAX_QUEUE_SIZE events from queue
+            val messages = ArrayList<Pair<Hfp.Data, MessageId>>(messageQueue.size)
+            for (i in 0..MAX_QUEUE_SIZE) {
+                val msg = messageQueue.poll()
+                if (msg == null) {
+                    break
+                } else {
+                    messages += msg
+                }
             }
 
             log.info { "Writing ${messages.size} messages to CSV files" }
@@ -138,5 +141,5 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
 
     private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory) }
 
-    fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = useMessageQueue { messageQueue.put(hfpData to msgId) }
+    fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = messageQueue.put(hfpData to msgId)
 }
