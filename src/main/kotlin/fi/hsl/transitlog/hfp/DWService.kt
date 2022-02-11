@@ -77,16 +77,10 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
             futures.forEach { it.get() }
         }, 15, 15, TimeUnit.SECONDS)
 
-        //Setup task for uploading files to Azure every hour at 15min and 45min
-        val now = ZonedDateTime.now()
-        var initialUploadTime = now.withMinute(15)
-        if (initialUploadTime.isBefore(now)) {
-            initialUploadTime = initialUploadTime.plusMinutes(30)
-            if (initialUploadTime.isBefore(now)) {
-                initialUploadTime = initialUploadTime.plusMinutes(30)
-            }
-        }
-        val initialDelay = now.until(initialUploadTime, ChronoUnit.SECONDS)
+        //Setup task for uploading files to Azure every 15 minutes
+        val timeBetweenUploads = Duration.ofMinutes(15)
+
+        val initialDelay = getInitialDelayForUpload(timeBetweenUploads)
 
         scheduledExecutorService.scheduleAtFixedRate({
             val dwFilesCopy = dwFiles.toMap()
@@ -136,7 +130,18 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
             }
 
             log.info { "Done uploading files to blob storage" }
-        }, initialDelay, Duration.ofMinutes(30).seconds, TimeUnit.SECONDS)
+        }, initialDelay.seconds, timeBetweenUploads.seconds, TimeUnit.SECONDS)
+    }
+
+    private fun getInitialDelayForUpload(timeBetweenUploads: Duration): Duration {
+        val now = ZonedDateTime.now()
+        var initialUploadTime = now.withMinute(15)
+
+        while (initialUploadTime.isBefore(now)) {
+            initialUploadTime = initialUploadTime.plusNanos(timeBetweenUploads.toNanos())
+        }
+
+        return Duration.ofMillis(now.until(initialUploadTime, ChronoUnit.MILLIS))
     }
 
     private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory) }
