@@ -22,7 +22,7 @@ import kotlin.collections.ArrayList
 
 class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     companion object {
-        private const val MAX_QUEUE_SIZE = 1_500_000
+        private const val MAX_QUEUE_SIZE = 750_000
     }
 
     private val log = KotlinLogging.logger {}
@@ -44,7 +44,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
         scheduledExecutorService.scheduleWithFixedDelay({
             //Poll up to MAX_QUEUE_SIZE events from queue
             val messages = ArrayList<Pair<Hfp.Data, MessageId>>(messageQueue.size)
-            for (i in 0..MAX_QUEUE_SIZE) {
+            for (i in 1..MAX_QUEUE_SIZE) {
                 val msg = messageQueue.poll()
                 if (msg == null) {
                     break
