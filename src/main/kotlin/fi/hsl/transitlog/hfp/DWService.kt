@@ -19,6 +19,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
+import kotlin.math.roundToInt
 
 class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     companion object {
@@ -31,7 +32,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
     //If this value grows too high, print debug information
     private var noUploadCounter = 0
 
-    private val fileWriterExecutorService = Executors.newCachedThreadPool(DaemonThreadFactory)
+    private val fileWriterExecutorService = Executors.newFixedThreadPool((Runtime.getRuntime().availableProcessors() * 1.5).roundToInt(), DaemonThreadFactory)
     private val scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(DaemonThreadFactory)
 
     private val messageQueue = LinkedBlockingQueue<Pair<Hfp.Data, MessageId>>(MAX_QUEUE_SIZE)
