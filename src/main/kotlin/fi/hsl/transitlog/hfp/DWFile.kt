@@ -38,9 +38,13 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             }
 
             //Use MQTT received timestamp for file names (messages can get delayed and relying on tst timestamp could cause files to be overwritten)
-            val timestamp = Instant.ofEpochMilli(hfpData.topic.receivedAt).atZone(HFP_TIMEZONE).toLocalDateTime().format(DATE_HOUR_FORMATTER)
+            val localDateTime = Instant.ofEpochMilli(hfpData.topic.receivedAt).atZone(HFP_TIMEZONE).toLocalDateTime()
+            val timestamp = localDateTime.format(DATE_HOUR_FORMATTER)
 
-            return "${timestamp}_${hfpData.topic.eventType}${private}.csv.zst"
+            //Create files that contain 15min data
+            val minuteNumber = 1 + (localDateTime.minute / 15)
+
+            return "$timestamp-${minuteNumber}_${hfpData.topic.eventType}$private.csv.zst"
         }
 
         private fun Hfp.Topic.isPrivateData(): Boolean {
@@ -85,7 +89,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var maxOday: LocalDate? = null
 
     //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
-    private val deduplicator = Deduplicator<IEvent, Long>(if (eventType == Hfp.Topic.EventType.VP) { 1_000_000 } else { 10_000 }) { ievent ->
+    private val deduplicator = Deduplicator<IEvent, Long>(if (eventType == Hfp.Topic.EventType.VP) { 250_000 } else { 1000 }) { ievent ->
         val bytes = (ievent.eventType?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf()) + ievent.tst.toInstant().toEpochMilli().toBigInteger().toByteArray() + (ievent.uniqueVehicleId?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf())
         return@Deduplicator MurmurHash3.hash128x64(bytes)[0]
     }
@@ -131,17 +135,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
 
     fun getLastModifiedAgo(): Duration = Duration.ofNanos(System.nanoTime() - lastModified)
 
-    //File is ready for uploading if it has not been modified for 40 minutes (20min for VP events)
+    //File is ready for uploading if it has not been modified for 15 minutes
     //(files are created based on the time that the HFP message was _received_ and we assume that are not long gaps between messages)
     //TODO: this should be configurable
-    fun isReadyForUpload(): Boolean {
-        val duration = if (eventType == Hfp.Topic.EventType.VP) {
-            Duration.ofMinutes(20)
-        } else {
-            Duration.ofMinutes(40)
-        }
-        return getLastModifiedAgo() > duration
-    }
+    fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(15)
 
     /**
      * Returns metadata about the file contents. Can be used as blob metadata
