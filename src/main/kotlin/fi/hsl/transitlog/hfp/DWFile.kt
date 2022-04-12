@@ -19,8 +19,10 @@ import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
 
-class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType) : AutoCloseable {
+class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType, compressionLevel: Int) : AutoCloseable {
     companion object {
+        private const val WRITE_BUFFER_SIZE = 32768
+
         private val HFP_TIMEZONE = ZoneId.of("Europe/Helsinki")
         private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
 
@@ -36,9 +38,13 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             }
 
             //Use MQTT received timestamp for file names (messages can get delayed and relying on tst timestamp could cause files to be overwritten)
-            val timestamp = Instant.ofEpochMilli(hfpData.topic.receivedAt).atZone(HFP_TIMEZONE).toLocalDateTime().format(DATE_HOUR_FORMATTER)
+            val localDateTime = Instant.ofEpochMilli(hfpData.topic.receivedAt).atZone(HFP_TIMEZONE).toLocalDateTime()
+            val timestamp = localDateTime.format(DATE_HOUR_FORMATTER)
 
-            return "${timestamp}_${hfpData.topic.eventType}${private}.csv.zst"
+            //Create files that contain 15min data
+            val minuteNumber = 1 + (localDateTime.minute / 15)
+
+            return "$timestamp-${minuteNumber}_${hfpData.topic.eventType}$private.csv.zst"
         }
 
         private fun Hfp.Topic.isPrivateData(): Boolean {
@@ -54,7 +60,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
         /**
          * @param dataDirectory Directory where the file will be stored
          */
-        fun createDWFile(hfpData: Hfp.Data, dataDirectory: Path = Files.createTempDirectory("hfp")): DWFile {
+        fun createDWFile(hfpData: Hfp.Data, dataDirectory: Path = Files.createTempDirectory("hfp"), compressionLevel: Int): DWFile {
             val blobName = createBlobName(hfpData)
 
             val path = dataDirectory.resolve(blobName)
@@ -63,14 +69,14 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             //Use OtherEvent as default in case new event types are added
             val eventType = EventType.getEventType(hfpData.topic) ?: EventType.OtherEvent
 
-            return DWFile(path, hfpData.topic.isPrivateData(), blobName, eventType.csvHeader, hfpData.topic.eventType)
+            return DWFile(path, hfpData.topic.isPrivateData(), blobName, eventType.csvHeader, hfpData.topic.eventType, compressionLevel)
         }
     }
 
     private val log = KotlinLogging.logger {}
 
     private val csvPrinter = CSVPrinter(
-        OutputStreamWriter(BufferedOutputStream(ZstdCompressorOutputStream(Files.newOutputStream(path), 19), 65536), StandardCharsets.UTF_8),
+        OutputStreamWriter(ZstdCompressorOutputStream(BufferedOutputStream(Files.newOutputStream(path), WRITE_BUFFER_SIZE), compressionLevel), StandardCharsets.UTF_8),
         CSVFormat.RFC4180.withHeader(*csvHeader.toTypedArray())
     )
     private var open: Boolean = true
@@ -83,7 +89,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
     private var maxOday: LocalDate? = null
 
     //Assumes that events are the same if event type, timestamp and unique vehicle ID are equal
-    private val deduplicator = Deduplicator<IEvent, Long> { ievent ->
+    private val deduplicator = Deduplicator<IEvent, Long>(if (eventType == Hfp.Topic.EventType.VP) { 250_000 } else { 1000 }) { ievent ->
         val bytes = (ievent.eventType?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf()) + ievent.tst.toInstant().toEpochMilli().toBigInteger().toByteArray() + (ievent.uniqueVehicleId?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf())
         return@Deduplicator MurmurHash3.hash128x64(bytes)[0]
     }
@@ -108,7 +114,6 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             }
 
             csvPrinter.printRecord(values)
-            lastModified = System.nanoTime()
 
             rowCount++
             if (minTst == null || event.tst < minTst) {
@@ -124,13 +129,16 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
                 maxOday = event.oday
             }
         }
+        
+        lastModified = System.nanoTime()
     }
 
     fun getLastModifiedAgo(): Duration = Duration.ofNanos(System.nanoTime() - lastModified)
 
-    //File is ready for uploading if it has not been modified for 45 minutes (we assume that HFP data is not delayed by more than one hour)
+    //File is ready for uploading if it has not been modified for 15 minutes
+    //(files are created based on the time that the HFP message was _received_ and we assume that are not long gaps between messages)
     //TODO: this should be configurable
-    fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(45)
+    fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(15)
 
     /**
      * Returns metadata about the file contents. Can be used as blob metadata

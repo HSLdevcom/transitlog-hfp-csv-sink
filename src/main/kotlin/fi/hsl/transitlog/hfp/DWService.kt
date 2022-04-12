@@ -14,58 +14,76 @@ import java.time.Duration
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
+import kotlin.math.roundToInt
 
-class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
+class DWService(private val dataDirectory: Path, private val compressionLevel: Int, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
+    companion object {
+        private const val MAX_QUEUE_SIZE = 750_000
+    }
+
     private val log = KotlinLogging.logger {}
 
     //Count how many times we have tried to upload data but there was nothing to upload
     //If this value grows too high, print debug information
     private var noUploadCounter = 0
 
-    private val executorService = Executors.newScheduledThreadPool(2, DaemonThreadFactory)
+    private val fileWriterExecutorService = Executors.newFixedThreadPool((Runtime.getRuntime().availableProcessors() * 1.5).roundToInt(), DaemonThreadFactory)
+    private val scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(DaemonThreadFactory)
 
-    private val messageQueue = LinkedList<Pair<Hfp.Data, MessageId>>()
+    private val messageQueue = LinkedBlockingQueue<Pair<Hfp.Data, MessageId>>(MAX_QUEUE_SIZE)
 
-    private inline fun <R> useMessageQueue(func: () -> R) = synchronized(messageQueue, func)
-
-    private val msgIds = mutableMapOf<Path, MutableList<MessageId>>()
+    private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<String, DWFile>()
 
     init {
         //Setup task for writing events to files
-        executorService.scheduleWithFixedDelay({
-            //Create copy of message queue and clear the queue
-            val messages = useMessageQueue {
-                val copy = messageQueue.toList()
-                messageQueue.clear()
-                return@useMessageQueue copy
+        scheduledExecutorService.scheduleWithFixedDelay({
+            //Poll up to MAX_QUEUE_SIZE events from queue
+            val messages = ArrayList<Pair<Hfp.Data, MessageId>>(messageQueue.size)
+            for (i in 1..MAX_QUEUE_SIZE) {
+                val msg = messageQueue.poll()
+                if (msg == null) {
+                    break
+                } else {
+                    messages += msg
+                }
             }
 
             log.info { "Writing ${messages.size} messages to CSV files" }
 
+            val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
             //Write messages to files
-            messages.forEach { (hfpData, msgId) ->
-                val dwFile = getDWFile(hfpData)
+            val futures = messagesByFile.map { (dwFile, messages) ->
+                fileWriterExecutorService.submit {
+                    val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
 
-                val eventType = EventType.getEventType(hfpData.topic)
-                if (eventType == EventType.LightPriorityEvent) {
-                    dwFile.writeEvent(LightPriorityEvent.parse(hfpData.topic, hfpData.payload))
-                } else {
-                    dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
+                    messages.forEach { (hfpData, msgId) ->
+                        val eventType = EventType.getEventType(hfpData.topic)
+                        if (eventType == EventType.LightPriorityEvent) {
+                            dwFile.writeEvent(LightPriorityEvent.parse(hfpData.topic, hfpData.payload))
+                        } else {
+                            dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
+                        }
+                        
+                        msgIdList.add(msgId)
+                    }
                 }
-
-                val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
-                msgIdList.add(msgId)
             }
+            //Wait for writing to be done
+            futures.forEach { it.get() }
         }, 15, 15, TimeUnit.SECONDS)
 
-        //Setup task for uploading files to Azure every hour at 45min
-        val now = ZonedDateTime.now()
-        val initialDelay = now.until(now.plusHours(1).withMinute(45), ChronoUnit.SECONDS)
+        //Setup task for uploading files to Azure every 15 minutes
+        val timeBetweenUploads = Duration.ofMinutes(15)
 
-        executorService.scheduleAtFixedRate({
+        val initialDelay = getInitialDelayForUpload(timeBetweenUploads)
+
+        scheduledExecutorService.scheduleAtFixedRate({
             val dwFilesCopy = dwFiles.toMap()
 
             log.info { "Uploading files to blob storage" }
@@ -83,9 +101,9 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
                         
                         //Acknowledge all messages that were in the file
                         val ackMsgIds = msgIds[dwFile.path]!!
-                        log.info { "Acknowledging ${ackMsgIds.size} messages" }
+                        log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
                         ackMsgIds.forEach(msgAcknowledger)
-                        log.info { "Messages acknowledged" }
+                        log.debug { "Messages written to ${dwFile.path} acknowledged" }
 
                         msgIds.remove(dwFile.path)
                         dwFiles.remove(key)
@@ -113,10 +131,21 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
             }
 
             log.info { "Done uploading files to blob storage" }
-        }, initialDelay, Duration.ofHours(1).seconds, TimeUnit.SECONDS)
+        }, initialDelay.seconds, timeBetweenUploads.seconds, TimeUnit.SECONDS)
     }
 
-    private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory) }
+    private fun getInitialDelayForUpload(timeBetweenUploads: Duration): Duration {
+        val now = ZonedDateTime.now()
+        var initialUploadTime = now.withMinute(15)
 
-    fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = useMessageQueue { messageQueue.add(hfpData to msgId) }
+        while (initialUploadTime.isBefore(now)) {
+            initialUploadTime = initialUploadTime.plusNanos(timeBetweenUploads.toNanos())
+        }
+
+        return Duration.ofMillis(now.until(initialUploadTime, ChronoUnit.MILLIS))
+    }
+
+    private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory, compressionLevel) }
+
+    fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = messageQueue.put(hfpData to msgId)
 }
