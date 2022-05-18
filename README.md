@@ -35,7 +35,7 @@ Currently used columns are listed here:
 | `oday`                  | String      | `yyyy-MM-dd`. Note that this is not the true date when the journey is running, but instead the "schedule date" of the journey (e.g. a journey starting at 2 AM on `2022-01-02` would have `oday` value of `2022-01-01`).
 | `odo`                   | Float       |
 | `oper`                  | Integer     |
-| `ownerOperatorId`       | Integer     |
+| `ownerOperatorId`       | Integer     | Opeator ID from the MQTT topic. Can be different than `oper`. See HFP documentation for more details
 | `receivedAt`            | ISO 8601    |
 | `route`                 | String      |
 | `routeId`               | String      |
