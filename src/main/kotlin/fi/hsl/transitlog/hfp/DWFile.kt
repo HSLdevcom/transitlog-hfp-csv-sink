@@ -19,7 +19,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
 
-class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType) : AutoCloseable {
+class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType, compressionLevel: Int) : AutoCloseable {
     companion object {
         private const val WRITE_BUFFER_SIZE = 32768
 
@@ -60,7 +60,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
         /**
          * @param dataDirectory Directory where the file will be stored
          */
-        fun createDWFile(hfpData: Hfp.Data, dataDirectory: Path = Files.createTempDirectory("hfp")): DWFile {
+        fun createDWFile(hfpData: Hfp.Data, dataDirectory: Path = Files.createTempDirectory("hfp"), compressionLevel: Int): DWFile {
             val blobName = createBlobName(hfpData)
 
             val path = dataDirectory.resolve(blobName)
@@ -69,14 +69,14 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             //Use OtherEvent as default in case new event types are added
             val eventType = EventType.getEventType(hfpData.topic) ?: EventType.OtherEvent
 
-            return DWFile(path, hfpData.topic.isPrivateData(), blobName, eventType.csvHeader, hfpData.topic.eventType)
+            return DWFile(path, hfpData.topic.isPrivateData(), blobName, eventType.csvHeader, hfpData.topic.eventType, compressionLevel)
         }
     }
 
     private val log = KotlinLogging.logger {}
 
     private val csvPrinter = CSVPrinter(
-        OutputStreamWriter(ZstdCompressorOutputStream(BufferedOutputStream(Files.newOutputStream(path), WRITE_BUFFER_SIZE)), StandardCharsets.UTF_8),
+        OutputStreamWriter(ZstdCompressorOutputStream(BufferedOutputStream(Files.newOutputStream(path), WRITE_BUFFER_SIZE), compressionLevel), StandardCharsets.UTF_8),
         CSVFormat.RFC4180.withHeader(*csvHeader.toTypedArray())
     )
     private var open: Boolean = true
