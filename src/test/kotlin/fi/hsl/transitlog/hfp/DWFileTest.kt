@@ -71,7 +71,7 @@ class DWFileTest {
     fun `Test writing events`() {
         val testData = generateTestData()
 
-        val dwFile = DWFile.createDWFile(testData[0])
+        val dwFile = DWFile.createDWFile(testData[0], compressionLevel = 19)
         try {
             testData.forEach { dwFile.writeEvent(Event.parse(it.topic, it.payload)) }
 

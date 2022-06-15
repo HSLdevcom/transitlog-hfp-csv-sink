@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
 
-class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
+class DWService(private val dataDirectory: Path, private val compressionLevel: Int, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     companion object {
         private const val MAX_QUEUE_SIZE = 750_000
     }
@@ -145,7 +145,7 @@ class DWService(private val dataDirectory: Path, blobUploader: BlobUploader, pri
         return Duration.ofMillis(now.until(initialUploadTime, ChronoUnit.MILLIS))
     }
 
-    private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory) }
+    private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory, compressionLevel) }
 
     fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = messageQueue.put(hfpData to msgId)
 }
