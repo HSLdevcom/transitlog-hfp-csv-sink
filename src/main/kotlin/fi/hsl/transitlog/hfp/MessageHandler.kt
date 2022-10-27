@@ -41,6 +41,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
 
     private val dwService = DWService(
         dataDirectory,
+        pulsarApplicationContext.config!!.getInt("application.zstdCompressionLevel"),
         sink,
         privateSink,
         ::ack

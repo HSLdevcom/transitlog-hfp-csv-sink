@@ -22,7 +22,7 @@ Currently used columns are listed here:
 | `hdg`                   | Integer     |
 | `headsign`              | String      |
 | `isOngoing`             | Boolean     |
-| `journeyStartTime`      | String      | In `hh:mm` format, hour can be over 24 for start times after midnight
+| `journeyStartTime`      | String      | `hh:mm`. The local time when the journey starts. Note that this value cannot be directly combined with value of `oday` to get the timestamp when the journey starts due to the way operating days are used for journeys starting after midnight.
 | `journeyType`           | String      |
 | `jrn`                   | Integer     |
 | `latitude`              | Float       |
@@ -32,10 +32,10 @@ Currently used columns are listed here:
 | `mode`                  | String      |
 | `nextStopId`            | String      |
 | `occu`                  | Integer     |
-| `oday`                  | String      | `yyyy-MM-dd`
+| `oday`                  | String      | `yyyy-MM-dd`. Note that this is not the true date when the journey is running, but instead the "schedule date" of the journey (e.g. a journey starting at 2 AM on `2022-01-02` would have `oday` value of `2022-01-01`).
 | `odo`                   | Float       |
 | `oper`                  | Integer     |
-| `ownerOperatorId`       | Integer     |
+| `ownerOperatorId`       | Integer     | Opeator ID from the MQTT topic. Can be different than `oper`. See HFP documentation for more details
 | `receivedAt`            | ISO 8601    |
 | `route`                 | String      |
 | `routeId`               | String      |
@@ -71,3 +71,11 @@ For light priority events, the following columns are also available:
 | `tlpRequestId`          | Integer
 | `tlpRequestType`        | String
 | `tlpSignalGroupNbr`     | Integer
+
+## Pulsar configuration
+
+Pulsar configuration needs some optimisation for running this application. Important settings that need to be adjusted are:
+* `backlogQuotaDefaultLimitGB`
+  * This option sets the limit for amount of data that can be stored in the backlog. HFP data is produced at around ~1GB per hour on average. The backlog quota should be adjusted to be able to store data for at least few days in case the sink is not working, so that no data is lost.
+* `maxUnackedMessagesPerConsumer` and `maxUnackedMessagesPerSubscription`
+  * These options limit the amount of unacked messages. If the amount of unacked messages is over the limit, Pulsar will stop sending messages to the sink. The sink will acknowledge messages once they have been uploaded to blob storage. If the unacked messages limit is too small, the sink cannot read enough messages to create the CSV files. If the limit is too high, the sink will read too many messages and crash due to memory usage (the sink needs to store message ID and checksum in memory for all messages before they are acknowledged).

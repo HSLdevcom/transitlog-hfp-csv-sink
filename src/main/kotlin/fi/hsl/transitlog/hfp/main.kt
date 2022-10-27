@@ -46,8 +46,8 @@ fun main(vararg args: String) {
             return@addCheck healthy
         }
 
-        app.launchWithHandler(messageHandler)
         log.info { "Started handling messages" }
+        app.launchWithHandler(messageHandler)
     } catch (e: Exception) {
         log.error(e) { "Exception at main" }
     }
