@@ -77,7 +77,7 @@ class DWFileTest {
 
             dwFile.close()
 
-            assertEquals("2021-01-01T08_VP.csv.zst", dwFile.blobName)
+            assertEquals("2021-01-01T08-1_VP.csv.zst", dwFile.blobName)
             assertFalse(dwFile.private)
             assertTrue(Files.size(dwFile.path) > 0, "File size greater than 0")
 

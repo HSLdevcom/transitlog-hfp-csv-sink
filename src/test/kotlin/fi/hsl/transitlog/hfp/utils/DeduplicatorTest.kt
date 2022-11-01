@@ -2,7 +2,6 @@ package fi.hsl.transitlog.hfp.utils
 
 import java.math.BigInteger
 import java.security.MessageDigest
-import kotlin.random.Random
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,7 +18,7 @@ class DeduplicatorTest {
 
     @BeforeTest
     fun setup() {
-        deduplicator = Deduplicator(::md5)
+        deduplicator = Deduplicator(10, ::md5)
     }
 
     @Test

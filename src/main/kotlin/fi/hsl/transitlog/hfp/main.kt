@@ -4,9 +4,11 @@ import fi.hsl.common.config.ConfigParser
 import fi.hsl.common.pulsar.PulsarApplication
 import mu.KotlinLogging
 import java.time.Duration
+import kotlin.time.ExperimentalTime
 
 private val log = KotlinLogging.logger {}
 
+@ExperimentalTime
 fun main(vararg args: String) {
     log.info { "Starting application" }
 
@@ -46,8 +48,8 @@ fun main(vararg args: String) {
             return@addCheck healthy
         }
 
-        app.launchWithHandler(messageHandler)
         log.info { "Started handling messages" }
+        app.launchWithHandler(messageHandler)
     } catch (e: Exception) {
         log.error(e) { "Exception at main" }
     }

@@ -1,6 +1,7 @@
 package fi.hsl.transitlog.hfp
 
 import fi.hsl.common.hfp.proto.Hfp
+import fi.hsl.common.hfp.proto.Hfp.Data
 import fi.hsl.transitlog.hfp.azure.BlobUploader
 import fi.hsl.transitlog.hfp.domain.Event
 import fi.hsl.transitlog.hfp.domain.EventType
@@ -15,12 +16,17 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
+import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
+@ExperimentalTime
 class DWService(private val dataDirectory: Path, private val compressionLevel: Int, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     companion object {
         private const val MAX_QUEUE_SIZE = 750_000
@@ -40,11 +46,46 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
     private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<String, DWFile>()
 
+    private inner class DWFileWriterRunnable(private val dwFile: DWFile, private val messages: List<Pair<Hfp.Data, MessageId>>) : Runnable {
+        override fun run() {
+            val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
+
+            messages.forEach { (hfpData, msgId) ->
+                val eventType = EventType.getEventType(hfpData.topic)
+                if (eventType == EventType.LightPriorityEvent) {
+                    safeParseLightPriorityEvent(hfpData)?.let { dwFile.writeEvent(it) }
+                } else {
+                    safeParseEvent(hfpData)?.let { dwFile.writeEvent(it) }
+                }
+
+                msgIdList.add(msgId)
+            }
+        }
+
+        private fun safeParseEvent(hfpData: Data): Event? {
+            return try {
+                Event.parse(hfpData.topic, hfpData.payload)
+            } catch (e: Exception) {
+                log.warn { "Failed to parse Event: $e" }
+                null
+            }
+        }
+
+        private fun safeParseLightPriorityEvent(hfpData: Data): LightPriorityEvent? {
+            return try {
+                LightPriorityEvent.parse(hfpData.topic, hfpData.payload)
+            } catch (e: Exception) {
+                log.warn { "Failed to parse LightPriorityEvent: $e" }
+                null
+            }
+        }
+    }
+
     init {
         //Setup task for writing events to files
         scheduledExecutorService.scheduleWithFixedDelay({
             //Poll up to MAX_QUEUE_SIZE events from queue
-            val messages = ArrayList<Pair<Hfp.Data, MessageId>>(messageQueue.size)
+            val messages = ArrayList<Pair<Hfp.Data, MessageId>>(min(MAX_QUEUE_SIZE, messageQueue.size))
             for (i in 1..MAX_QUEUE_SIZE) {
                 val msg = messageQueue.poll()
                 if (msg == null) {
@@ -54,28 +95,22 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
                 }
             }
 
-            log.info { "Writing ${messages.size} messages to CSV files" }
+            log.debug { "Writing ${messages.size} messages to CSV files" }
 
             val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
             //Write messages to files
-            val futures = messagesByFile.map { (dwFile, messages) ->
-                fileWriterExecutorService.submit {
-                    val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
+            val completionService = ExecutorCompletionService<Void>(fileWriterExecutorService)
+            messagesByFile.map { (dwFile, messages) -> completionService.submit(DWFileWriterRunnable(dwFile, messages), null) }
 
-                    messages.forEach { (hfpData, msgId) ->
-                        val eventType = EventType.getEventType(hfpData.topic)
-                        if (eventType == EventType.LightPriorityEvent) {
-                            dwFile.writeEvent(LightPriorityEvent.parse(hfpData.topic, hfpData.payload))
-                        } else {
-                            dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
-                        }
-                        
-                        msgIdList.add(msgId)
-                    }
+            //Wait for writing to be done
+            val duration = measureTime {
+                try {
+                    completionService.take().get()
+                } catch (e: Exception) {
+                    log.warn { "Exception while waiting for messages to be written: $e" }
                 }
             }
-            //Wait for writing to be done
-            futures.forEach { it.get() }
+            log.info { "Wrote ${messages.size} messages to CSV files in ${duration.inWholeMilliseconds} ms" }
         }, 15, 15, TimeUnit.SECONDS)
 
         //Setup task for uploading files to Azure every 15 minutes
