@@ -1,6 +1,7 @@
 package fi.hsl.transitlog.hfp
 
 import fi.hsl.common.hfp.proto.Hfp
+import fi.hsl.common.hfp.proto.Hfp.Data
 import fi.hsl.transitlog.hfp.azure.BlobUploader
 import fi.hsl.transitlog.hfp.domain.Event
 import fi.hsl.transitlog.hfp.domain.EventType
@@ -52,12 +53,30 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
             messages.forEach { (hfpData, msgId) ->
                 val eventType = EventType.getEventType(hfpData.topic)
                 if (eventType == EventType.LightPriorityEvent) {
-                    dwFile.writeEvent(LightPriorityEvent.parse(hfpData.topic, hfpData.payload))
+                    safeParseLightPriorityEvent(hfpData)?.let { dwFile.writeEvent(it) }
                 } else {
-                    dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
+                    safeParseEvent(hfpData)?.let { dwFile.writeEvent(it) }
                 }
 
                 msgIdList.add(msgId)
+            }
+        }
+
+        private fun safeParseEvent(hfpData: Data): Event? {
+            return try {
+                Event.parse(hfpData.topic, hfpData.payload)
+            } catch (e: Exception) {
+                log.warn { "Failed to parse Event: $e" }
+                null
+            }
+        }
+
+        private fun safeParseLightPriorityEvent(hfpData: Data): LightPriorityEvent? {
+            return try {
+                LightPriorityEvent.parse(hfpData.topic, hfpData.payload)
+            } catch (e: Exception) {
+                log.warn { "Failed to parse LightPriorityEvent: $e" }
+                null
             }
         }
     }
