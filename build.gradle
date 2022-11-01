@@ -48,7 +48,7 @@ dependencies {
     //Needed for Pulsar
     implementation 'jaxb:activation:1.0.2'
 
-    implementation "com.azure:azure-storage-blob:12.13.0"
+    implementation "com.azure:azure-storage-blob:12.20.0"
     implementation "io.netty:netty-tcnative-boringssl-static:2.0.39.Final"
 
     implementation "org.apache.commons:commons-csv:1.8"
