@@ -6,6 +6,7 @@ import fi.hsl.transitlog.hfp.domain.Event
 import fi.hsl.transitlog.hfp.domain.EventType
 import fi.hsl.transitlog.hfp.domain.LightPriorityEvent
 import fi.hsl.transitlog.hfp.utils.DaemonThreadFactory
+import jdk.nashorn.internal.runtime.regexp.joni.Config.log
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.MessageId
 import java.nio.file.Files
@@ -15,6 +16,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -44,6 +46,23 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
     private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<String, DWFile>()
 
+    private inner class DWFileWriterRunnable(private val dwFile: DWFile, private val messages: List<Pair<Hfp.Data, MessageId>>) : Runnable {
+        override fun run() {
+            val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
+
+            messages.forEach { (hfpData, msgId) ->
+                val eventType = EventType.getEventType(hfpData.topic)
+                if (eventType == EventType.LightPriorityEvent) {
+                    dwFile.writeEvent(LightPriorityEvent.parse(hfpData.topic, hfpData.payload))
+                } else {
+                    dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
+                }
+
+                msgIdList.add(msgId)
+            }
+        }
+    }
+
     init {
         //Setup task for writing events to files
         scheduledExecutorService.scheduleWithFixedDelay({
@@ -62,25 +81,16 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
 
             val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
             //Write messages to files
-            val futures = messagesByFile.map { (dwFile, messages) ->
-                fileWriterExecutorService.submit {
-                    val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
+            val completionService = ExecutorCompletionService<Void>(fileWriterExecutorService)
+            messagesByFile.map { (dwFile, messages) -> completionService.submit(DWFileWriterRunnable(dwFile, messages), null) }
 
-                    messages.forEach { (hfpData, msgId) ->
-                        val eventType = EventType.getEventType(hfpData.topic)
-                        if (eventType == EventType.LightPriorityEvent) {
-                            dwFile.writeEvent(LightPriorityEvent.parse(hfpData.topic, hfpData.payload))
-                        } else {
-                            dwFile.writeEvent(Event.parse(hfpData.topic, hfpData.payload))
-                        }
-                        
-                        msgIdList.add(msgId)
-                    }
-                }
-            }
             //Wait for writing to be done
             val duration = measureTime {
-                futures.forEach { it.get() }
+                try {
+                    completionService.take().get()
+                } catch (e: Exception) {
+                    log.warn { "Exception while waiting for messages to be written: $e" }
+                }
             }
             log.info { "Wrote ${messages.size} messages to CSV files in ${duration.inWholeMilliseconds} ms" }
         }, 15, 15, TimeUnit.SECONDS)
