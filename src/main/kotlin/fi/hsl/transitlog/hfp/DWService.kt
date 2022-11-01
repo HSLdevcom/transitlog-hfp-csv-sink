@@ -6,7 +6,6 @@ import fi.hsl.transitlog.hfp.domain.Event
 import fi.hsl.transitlog.hfp.domain.EventType
 import fi.hsl.transitlog.hfp.domain.LightPriorityEvent
 import fi.hsl.transitlog.hfp.utils.DaemonThreadFactory
-import jdk.nashorn.internal.runtime.regexp.joni.Config.log
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.MessageId
 import java.nio.file.Files
