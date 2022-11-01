@@ -19,6 +19,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -47,7 +48,7 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
         //Setup task for writing events to files
         scheduledExecutorService.scheduleWithFixedDelay({
             //Poll up to MAX_QUEUE_SIZE events from queue
-            val messages = ArrayList<Pair<Hfp.Data, MessageId>>(messageQueue.size)
+            val messages = ArrayList<Pair<Hfp.Data, MessageId>>(min(MAX_QUEUE_SIZE, messageQueue.size))
             for (i in 1..MAX_QUEUE_SIZE) {
                 val msg = messageQueue.poll()
                 if (msg == null) {
