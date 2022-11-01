@@ -20,7 +20,10 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
+@ExperimentalTime
 class DWService(private val dataDirectory: Path, private val compressionLevel: Int, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
     companion object {
         private const val MAX_QUEUE_SIZE = 750_000
@@ -54,7 +57,7 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
                 }
             }
 
-            log.info { "Writing ${messages.size} messages to CSV files" }
+            log.debug { "Writing ${messages.size} messages to CSV files" }
 
             val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
             //Write messages to files
@@ -75,7 +78,10 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
                 }
             }
             //Wait for writing to be done
-            futures.forEach { it.get() }
+            val duration = measureTime {
+                futures.forEach { it.get() }
+            }
+            log.info { "Wrote ${messages.size} messages to CSV files in ${duration.inWholeMilliseconds} ms" }
         }, 15, 15, TimeUnit.SECONDS)
 
         //Setup task for uploading files to Azure every 15 minutes
