@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download .jar file
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transitlog-hfp-csv-sink.jar
           path: build/libs
@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download .jar file
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: transitlog-hfp-csv-sink.jar
           path: build/libs
