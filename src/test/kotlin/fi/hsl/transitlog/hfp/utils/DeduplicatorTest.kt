@@ -9,16 +9,16 @@ import kotlin.test.assertTrue
 
 
 class DeduplicatorTest {
-    private lateinit var deduplicator: Deduplicator<String, String>
+    private lateinit var deduplicator: Deduplicator<String>
 
-    private fun md5(input: String): String {
+    private fun md5(input: String): Long {
         val md = MessageDigest.getInstance("MD5")
-        return BigInteger(1, md.digest(input.toByteArray(Charsets.UTF_8))).toString(16).padStart(32, '0')
+        return BigInteger(1, md.digest(input.toByteArray(Charsets.UTF_8))).toLong()
     }
 
     @BeforeTest
     fun setup() {
-        deduplicator = Deduplicator(10, ::md5)
+        deduplicator = Deduplicator(::md5)
     }
 
     @Test
