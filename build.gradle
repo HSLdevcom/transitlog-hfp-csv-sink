@@ -1,6 +1,6 @@
 plugins {
     id 'com.github.johnrengelman.shadow' version '6.0.0'
-    id 'org.jetbrains.kotlin.jvm' version '1.5.10'
+    id 'org.jetbrains.kotlin.jvm' version '1.7.20'
 }
 
 group 'org.example'
@@ -40,6 +40,9 @@ dependencies {
 
     testImplementation 'org.jetbrains.kotlin:kotlin-test'
 
+    testImplementation "org.testcontainers:testcontainers:1.17.6"
+    testImplementation "org.testcontainers:junit-jupiter:1.17.6"
+
     implementation "io.github.microutils:kotlin-logging:1.6.22"
 
     implementation ('fi.hsl:transitdata-common:1.4.4') {
@@ -51,9 +54,9 @@ dependencies {
     implementation "com.azure:azure-storage-blob:12.13.0"
     implementation "io.netty:netty-tcnative-boringssl-static:2.0.39.Final"
 
-    implementation "org.apache.commons:commons-csv:1.8"
+    implementation "org.apache.commons:commons-csv:1.9.0"
     implementation "org.apache.commons:commons-compress:1.21"
-    implementation 'com.github.luben:zstd-jni:1.5.2-2'
+    implementation 'com.github.luben:zstd-jni:1.5.2-5'
     implementation "commons-codec:commons-codec:1.15"
 
 }
