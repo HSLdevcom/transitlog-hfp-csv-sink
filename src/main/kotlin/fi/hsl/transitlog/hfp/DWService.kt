@@ -27,7 +27,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 @ExperimentalTime
-class DWService(private val dataDirectory: Path, private val compressionLevel: Int, blobUploader: BlobUploader, privateBlobUploader: BlobUploader, msgAcknowledger: (MessageId) -> Unit) {
+class DWService(private val dataDirectory: Path, private val compressionLevel: Int, sink: CSVSink, privateSink: CSVSink, msgAcknowledger: (MessageId) -> Unit) {
     companion object {
         private const val MAX_QUEUE_SIZE = 750_000
     }
@@ -132,7 +132,7 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
                         dwFile.close()
 
                         //Upload file to Blob Storage
-                        (if (dwFile.private) { privateBlobUploader } else { blobUploader }).uploadFromFile(dwFile.path, blobName = dwFile.blobName, metadata = dwFile.getMetadata())
+                        (if (dwFile.private) { privateSink } else { sink }).upload(dwFile.path, name = dwFile.blobName, metadata = dwFile.getMetadata())
                         
                         //Acknowledge all messages that were in the file
                         val ackMsgIds = msgIds[dwFile.path]!!
