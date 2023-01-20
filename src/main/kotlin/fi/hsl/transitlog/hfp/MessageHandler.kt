@@ -6,26 +6,42 @@ import fi.hsl.common.pulsar.PulsarApplicationContext
 import fi.hsl.common.transitdata.TransitdataProperties
 import fi.hsl.common.transitdata.TransitdataSchema
 import fi.hsl.transitlog.hfp.azure.BlobUploader
+import fi.hsl.transitlog.hfp.validator.EventValidator
+import fi.hsl.transitlog.hfp.validator.OdayValidator
+import fi.hsl.transitlog.hfp.validator.TimestampValidator
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.MessageId
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.ZoneId
 import kotlin.time.ExperimentalTime
+
+private val log = KotlinLogging.logger {}
 
 @ExperimentalTime
 class MessageHandler(private val pulsarApplicationContext: PulsarApplicationContext) : IMessageHandler {
-    private val log = KotlinLogging.logger {}
+    private val config = pulsarApplicationContext.config!!
 
-    private val connectionString = pulsarApplicationContext.config!!.getString("application.blobConnectionString")
+    private val connectionString = config.getString("application.blobConnectionString")
 
-    private val blobUploader = BlobUploader(connectionString, pulsarApplicationContext.config!!.getString("application.blobContainer"))
+    private val blobUploader = BlobUploader(connectionString, config.getString("application.blobContainer"))
     //Uploads to private container that is not accessible without authentication
-    private val blobUploaderPrivate = BlobUploader(connectionString, pulsarApplicationContext.config!!.getString("application.blobContainerPrivate"))
+    private val blobUploaderPrivate = BlobUploader(connectionString, config.getString("application.blobContainerPrivate"))
 
     private val dataDirectory: Path = Paths.get("hfp").also {
         Files.createDirectories(it)
+    }
+
+    private val validators: List<EventValidator> = mutableListOf<EventValidator>().also {
+        if (config.getBoolean("validator.tst.enabled")) {
+            it.add(TimestampValidator(config.getDuration("validator.tst.maxPast"), config.getDuration("validator.tst.maxFuture")))
+        }
+
+        if (config.getBoolean("validator.oday.enabled")) {
+            it.add(OdayValidator(ZoneId.of("Europe/Helsinki"), config.getInt("validator.oday.maxPast"), config.getInt("validator.oday.maxFuture")))
+        }
     }
 
     private val dwService = DWService(
@@ -33,7 +49,8 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
         pulsarApplicationContext.config!!.getInt("application.zstdCompressionLevel"),
         blobUploader,
         blobUploaderPrivate,
-        ::ack
+        ::ack,
+        validators
     )
 
     private var lastHandledMessageTime = System.nanoTime()

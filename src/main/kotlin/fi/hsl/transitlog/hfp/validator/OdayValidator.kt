@@ -1,8 +1,10 @@
 package fi.hsl.transitlog.hfp.validator
 
 import fi.hsl.transitlog.hfp.domain.IEvent
+import mu.KotlinLogging
 import java.time.ZoneId
-import java.time.temporal.ChronoUnit
+
+private val log = KotlinLogging.logger {}
 
 class OdayValidator(private val timezone: ZoneId, private val maxPast: Int, private val maxFuture: Int) : EventValidator {
     override fun isValidEvent(event: IEvent): Boolean {
@@ -12,8 +14,16 @@ class OdayValidator(private val timezone: ZoneId, private val maxPast: Int, priv
         }
 
         val oday = event.oday!!
-        val receivedAtDay = event.receivedAt!!.atZone(timezone).toLocalDate()!!
 
-        return oday.until(receivedAtDay, ChronoUnit.DAYS) <= maxPast && receivedAtDay.until(oday, ChronoUnit.DAYS) <= maxFuture
+        val receivedAtDay = event.receivedAt!!.atZone(timezone).toLocalDate()!!
+        val lowerBound = receivedAtDay.minusDays(maxPast.toLong())
+        val upperBound = receivedAtDay.plusDays(maxFuture.toLong())
+
+        val valid = oday >= lowerBound && oday <= upperBound
+        if (!valid) {
+            log.warn { "Oday ($oday) was outside of accepted range [$lowerBound - $upperBound] for vehicle ${event.uniqueVehicleId}" }
+        }
+
+        return valid
     }
 }

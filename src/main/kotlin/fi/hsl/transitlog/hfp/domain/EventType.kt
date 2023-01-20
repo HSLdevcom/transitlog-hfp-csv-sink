@@ -1,6 +1,7 @@
 package fi.hsl.transitlog.hfp.domain
 
 import fi.hsl.common.hfp.proto.Hfp
+import fi.hsl.common.hfp.proto.Hfp.Topic.JourneyType
 import mu.KotlinLogging
 import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberProperties
@@ -13,10 +14,10 @@ enum class EventType(private val dataClass: KClass<*>) {
     companion object {
         private val log = KotlinLogging.logger {}
 
-        fun getEventType(hfpTopic: Hfp.Topic): EventType? {
-            return when(hfpTopic.eventType) {
+        fun getEventType(journeyType: JourneyType, eventType: Hfp.Topic.EventType): EventType? {
+            return when(eventType) {
                 Hfp.Topic.EventType.VP -> {
-                    if (hfpTopic.journeyType == Hfp.Topic.JourneyType.deadrun) {
+                    if (journeyType == JourneyType.deadrun) {
                         UnsignedEvent
                     } else {
                         VehiclePosition
@@ -46,10 +47,12 @@ enum class EventType(private val dataClass: KClass<*>) {
                     OtherEvent
                 }
                 else -> {
-                    log.warn { "Received HFP message with unknown event type ${hfpTopic.eventType}" }
+                    log.warn { "Received HFP message with unknown event type $eventType" }
                     null
                 }
             }
         }
+
+        fun getEventType(hfpTopic: Hfp.Topic): EventType? = getEventType(hfpTopic.journeyType, hfpTopic.eventType)
     }
 }
