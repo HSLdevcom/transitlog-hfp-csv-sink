@@ -1,7 +1,6 @@
 package fi.hsl.transitlog.hfp
 
 import fi.hsl.common.hfp.proto.Hfp.Data
-import fi.hsl.transitlog.hfp.azure.BlobUploader
 import fi.hsl.transitlog.hfp.domain.Event
 import fi.hsl.transitlog.hfp.domain.EventType
 import fi.hsl.transitlog.hfp.domain.IEvent
@@ -27,8 +26,8 @@ import kotlin.time.measureTime
 class DWService(
     private val dataDirectory: Path,
     private val compressionLevel: Int,
-    blobUploader: BlobUploader,
-    privateBlobUploader: BlobUploader,
+    sink: CSVSink,
+    privateSink: CSVSink,
     msgAcknowledger: (MessageId) -> Unit,
     validators: List<EventValidator> = emptyList()
 ) {
@@ -115,7 +114,7 @@ class DWService(
                         dwFile.close()
 
                         //Upload file to Blob Storage
-                        (if (dwFile.private) { privateBlobUploader } else { blobUploader }).uploadFromFile(dwFile.path, blobName = dwFile.blobName, metadata = dwFile.getMetadata())
+                        (if (dwFile.private) { privateSink } else { sink }).upload(dwFile.path, name = dwFile.blobName, metadata = dwFile.getMetadata())
                         
                         //Acknowledge all messages that were in the file
                         val ackMsgIds = msgIds[dwFile.path]!!
@@ -193,5 +192,4 @@ class DWService(
             null
         }
     }
-
 }

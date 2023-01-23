@@ -5,10 +5,12 @@ import fi.hsl.common.pulsar.IMessageHandler
 import fi.hsl.common.pulsar.PulsarApplicationContext
 import fi.hsl.common.transitdata.TransitdataProperties
 import fi.hsl.common.transitdata.TransitdataSchema
+import fi.hsl.transitlog.hfp.azure.AzureSink
 import fi.hsl.transitlog.hfp.azure.BlobUploader
 import fi.hsl.transitlog.hfp.validator.EventValidator
 import fi.hsl.transitlog.hfp.validator.OdayValidator
 import fi.hsl.transitlog.hfp.validator.TimestampValidator
+import fi.hsl.transitlog.hfp.utils.TestSink
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.MessageId
@@ -26,9 +28,20 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
 
     private val connectionString = config.getString("application.blobConnectionString")
 
-    private val blobUploader = BlobUploader(connectionString, config.getString("application.blobContainer"))
-    //Uploads to private container that is not accessible without authentication
-    private val blobUploaderPrivate = BlobUploader(connectionString, config.getString("application.blobContainerPrivate"))
+    private val sinkType = pulsarApplicationContext.config!!.getString("application.sinkType")
+
+    private val sink = if ("azure" == sinkType) {
+        AzureSink(BlobUploader(connectionString, pulsarApplicationContext.config!!.getString("application.blobContainer")))
+    } else {
+        TestSink()
+    }
+
+    private val privateSink = if ("azure" == sinkType) {
+        //Uploads to private container that is not accessible without authentication
+        AzureSink(BlobUploader(connectionString, pulsarApplicationContext.config!!.getString("application.blobContainerPrivate")))
+    } else {
+        TestSink()
+    }
 
     private val dataDirectory: Path = Paths.get("hfp").also {
         Files.createDirectories(it)
@@ -47,8 +60,8 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
     private val dwService = DWService(
         dataDirectory,
         pulsarApplicationContext.config!!.getInt("application.zstdCompressionLevel"),
-        blobUploader,
-        blobUploaderPrivate,
+        sink,
+        privateSink,
         ::ack,
         validators
     )
