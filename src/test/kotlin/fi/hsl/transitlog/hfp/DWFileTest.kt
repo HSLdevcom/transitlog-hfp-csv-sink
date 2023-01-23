@@ -72,7 +72,12 @@ class DWFileTest {
     fun `Test writing events`() {
         val hfp = generateTestData()
 
-        val dwFile = DWFile.createDWFile(Event.parse(hfp[0].topic, hfp[0].payload), compressionLevel = 19)
+        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19, ZoneId.of("Europe/Helsinki"))
+
+        val event = Event.parse(hfp[0].topic, hfp[0].payload)
+        val identifier = fileFactory.createBlobIdentifier(event)
+
+        val dwFile = fileFactory.createDWFile(identifier)
         try {
             hfp.forEach { dwFile.writeEvent(Event.parse(it.topic, it.payload)) }
 
