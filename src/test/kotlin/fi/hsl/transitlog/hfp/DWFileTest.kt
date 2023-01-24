@@ -4,15 +4,16 @@ import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.transitlog.hfp.domain.Event
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream
 import org.junit.jupiter.api.Test
-import java.lang.RuntimeException
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.time.*
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.test.asserter
 
 class DWFileTest {
     private val testDataStartTime = ZonedDateTime.of(LocalDate.of(2021, 1, 1), LocalTime.of(8, 0), ZoneId.of("Europe/Helsinki"))
@@ -69,11 +70,16 @@ class DWFileTest {
 
     @Test
     fun `Test writing events`() {
-        val testData = generateTestData()
+        val hfp = generateTestData()
 
-        val dwFile = DWFile.createDWFile(testData[0], compressionLevel = 19)
+        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19, ZoneId.of("Europe/Helsinki"))
+
+        val event = Event.parse(hfp[0].topic, hfp[0].payload)
+        val identifier = fileFactory.createBlobIdentifier(event)
+
+        val dwFile = fileFactory.createDWFile(identifier)
         try {
-            testData.forEach { dwFile.writeEvent(Event.parse(it.topic, it.payload)) }
+            hfp.forEach { dwFile.writeEvent(Event.parse(it.topic, it.payload)) }
 
             dwFile.close()
 

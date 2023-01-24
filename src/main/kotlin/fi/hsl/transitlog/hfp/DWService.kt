@@ -1,33 +1,36 @@
 package fi.hsl.transitlog.hfp
 
-import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.common.hfp.proto.Hfp.Data
-import fi.hsl.transitlog.hfp.azure.BlobUploader
 import fi.hsl.transitlog.hfp.domain.Event
 import fi.hsl.transitlog.hfp.domain.EventType
+import fi.hsl.transitlog.hfp.domain.IEvent
 import fi.hsl.transitlog.hfp.domain.LightPriorityEvent
 import fi.hsl.transitlog.hfp.utils.DaemonThreadFactory
+import fi.hsl.transitlog.hfp.validator.EventValidator
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.MessageId
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorCompletionService
-import java.util.concurrent.Executors
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
-import kotlin.collections.ArrayList
+import java.util.concurrent.*
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 @ExperimentalTime
-class DWService(private val dataDirectory: Path, private val compressionLevel: Int, sink: CSVSink, privateSink: CSVSink, msgAcknowledger: (MessageId) -> Unit) {
+class DWService(
+    private val dataDirectory: Path,
+    private val compressionLevel: Int,
+    sink: CSVSink,
+    privateSink: CSVSink,
+    msgAcknowledger: (MessageId) -> Unit,
+    validators: List<EventValidator> = emptyList()
+) {
     companion object {
         private const val MAX_QUEUE_SIZE = 750_000
     }
@@ -41,42 +44,21 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
     private val fileWriterExecutorService = Executors.newFixedThreadPool((Runtime.getRuntime().availableProcessors() * 1.5).roundToInt(), DaemonThreadFactory)
     private val scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(DaemonThreadFactory)
 
-    private val messageQueue = LinkedBlockingQueue<Pair<Hfp.Data, MessageId>>(MAX_QUEUE_SIZE)
+    private val messageQueue = LinkedBlockingQueue<Pair<IEvent, MessageId>>(MAX_QUEUE_SIZE)
 
     private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
-    private val dwFiles = mutableMapOf<String, DWFile>()
+    private val dwFiles = mutableMapOf<DWFile.FileFactory.BlobIdentifier, DWFile>()
 
-    private inner class DWFileWriterRunnable(private val dwFile: DWFile, private val messages: List<Pair<Hfp.Data, MessageId>>) : Runnable {
+    private val fileFactory = DWFile.FileFactory(dataDirectory, compressionLevel, ZoneId.of("Europe/Helsinki"), validators)
+
+    private inner class DWFileWriterRunnable(private val dwFile: DWFile, private val messages: List<Pair<IEvent, MessageId>>) : Runnable {
         override fun run() {
             val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
 
-            messages.forEach { (hfpData, msgId) ->
-                val eventType = EventType.getEventType(hfpData.topic)
-                if (eventType == EventType.LightPriorityEvent) {
-                    safeParseLightPriorityEvent(hfpData)?.let { dwFile.writeEvent(it) }
-                } else {
-                    safeParseEvent(hfpData)?.let { dwFile.writeEvent(it) }
-                }
+            messages.forEach { (event, msgId) ->
+                dwFile.writeEvent(event)
 
                 msgIdList.add(msgId)
-            }
-        }
-
-        private fun safeParseEvent(hfpData: Data): Event? {
-            return try {
-                Event.parse(hfpData.topic, hfpData.payload)
-            } catch (e: Exception) {
-                log.warn { "Failed to parse Event: $e" }
-                null
-            }
-        }
-
-        private fun safeParseLightPriorityEvent(hfpData: Data): LightPriorityEvent? {
-            return try {
-                LightPriorityEvent.parse(hfpData.topic, hfpData.payload)
-            } catch (e: Exception) {
-                log.warn { "Failed to parse LightPriorityEvent: $e" }
-                null
             }
         }
     }
@@ -85,7 +67,7 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
         //Setup task for writing events to files
         scheduledExecutorService.scheduleWithFixedDelay({
             //Poll up to MAX_QUEUE_SIZE events from queue
-            val messages = ArrayList<Pair<Hfp.Data, MessageId>>(min(MAX_QUEUE_SIZE, messageQueue.size))
+            val messages = ArrayList<Pair<IEvent, MessageId>>(min(MAX_QUEUE_SIZE, messageQueue.size))
             for (i in 1..MAX_QUEUE_SIZE) {
                 val msg = messageQueue.poll()
                 if (msg == null) {
@@ -125,7 +107,7 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
 
             var filesUploaded = 0
 
-            for ((key: String, dwFile: DWFile) in dwFilesCopy.entries) {
+            for ((key: DWFile.FileFactory.BlobIdentifier, dwFile: DWFile) in dwFilesCopy.entries) {
                 if (dwFile.isReadyForUpload()) {
                     try {
                         //Close file for writing
@@ -180,7 +162,34 @@ class DWService(private val dataDirectory: Path, private val compressionLevel: I
         return Duration.ofMillis(now.until(initialUploadTime, ChronoUnit.MILLIS))
     }
 
-    private fun getDWFile(hfpData: Hfp.Data): DWFile = dwFiles.computeIfAbsent(DWFile.createBlobName(hfpData)) { DWFile.createDWFile(hfpData, dataDirectory = dataDirectory, compressionLevel) }
+    private fun getDWFile(event: IEvent): DWFile = dwFiles.computeIfAbsent(fileFactory.createBlobIdentifier(event)) {
+        fileFactory.createDWFile(it)
+    }
 
-    fun addEvent(hfpData: Hfp.Data, msgId: MessageId) = messageQueue.put(hfpData to msgId)
+    fun addEvent(hfpData: Data, msgId: MessageId) {
+        val eventType = EventType.getEventType(hfpData.topic)
+        if (eventType == EventType.LightPriorityEvent) {
+            safeParseLightPriorityEvent(hfpData)?.let { messageQueue.put(it to msgId) }
+        } else {
+            safeParseEvent(hfpData)?.let { messageQueue.put(it to msgId) }
+        }
+    }
+
+    private fun safeParseEvent(hfpData: Data): Event? {
+        return try {
+            Event.parse(hfpData.topic, hfpData.payload)
+        } catch (e: Exception) {
+            log.warn { "Failed to parse Event: $e" }
+            null
+        }
+    }
+
+    private fun safeParseLightPriorityEvent(hfpData: Data): LightPriorityEvent? {
+        return try {
+            LightPriorityEvent.parse(hfpData.topic, hfpData.payload)
+        } catch (e: Exception) {
+            log.warn { "Failed to parse LightPriorityEvent: $e" }
+            null
+        }
+    }
 }
