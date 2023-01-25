@@ -107,6 +107,8 @@ class DWService(
 
             var filesUploaded = 0
 
+            log.info { "Files ready for upload: ${dwFilesCopy.values.filter { it.isReadyForUpload() }.map { it.path }.joinToString(", ")}" }
+
             for ((key: DWFile.FileFactory.BlobIdentifier, dwFile: DWFile) in dwFilesCopy.entries) {
                 if (dwFile.isReadyForUpload()) {
                     try {
@@ -117,6 +119,8 @@ class DWService(
                         (if (dwFile.private) { privateSink } else { sink }).upload(dwFile.path, name = dwFile.blobName, metadata = dwFile.getMetadata())
                         
                         //Acknowledge all messages that were in the file
+                        log.info { "Acknowledging messages written to: ${dwFile.path}" }
+
                         val ackMsgIds = msgIds[dwFile.path]!!
                         log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
                         ackMsgIds.forEach(msgAcknowledger)
