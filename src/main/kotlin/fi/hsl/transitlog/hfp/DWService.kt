@@ -78,7 +78,7 @@ class DWService(
                 }
             }
 
-            log.debug { "Writing ${messages.size} messages to CSV files" }
+            log.info { "Writing ${messages.size} messages to CSV files" }
 
             val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
             //Write messages to files
