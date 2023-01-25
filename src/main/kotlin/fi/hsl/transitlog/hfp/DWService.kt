@@ -55,6 +55,7 @@ class DWService(
         override fun run() {
             val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
 
+            log.info { "Writing ${messages.size} rows to ${dwFile.path}" }
             messages.forEach { (event, msgId) ->
                 dwFile.writeEvent(event)
 
