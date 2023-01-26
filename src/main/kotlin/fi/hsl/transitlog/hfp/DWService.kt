@@ -81,6 +81,9 @@ class DWService(
             log.info { "Writing ${messages.size} messages to CSV files" }
 
             val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
+
+            log.info { "Amount of messages per file: ${messagesByFile.map { it.key.path to it.value.size }.joinToString("\n")}"}
+
             //Write messages to files
             val completionService = ExecutorCompletionService<Void>(fileWriterExecutorService)
             messagesByFile.map { (dwFile, messages) -> completionService.submit(DWFileWriterRunnable(dwFile, messages), null) }
