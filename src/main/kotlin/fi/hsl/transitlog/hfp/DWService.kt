@@ -24,11 +24,11 @@ import kotlin.time.measureTime
 
 @ExperimentalTime
 class DWService(
-    private val dataDirectory: Path,
-    private val compressionLevel: Int,
+    dataDirectory: Path,
+    compressionLevel: Int,
     sink: CSVSink,
     privateSink: CSVSink,
-    msgAcknowledger: (MessageId) -> Unit,
+    private val msgAcknowledger: (MessageId) -> Unit,
     validators: List<EventValidator> = emptyList()
 ) {
     companion object {
@@ -173,10 +173,17 @@ class DWService(
 
     fun addEvent(hfpData: Data, msgId: MessageId) {
         val eventType = EventType.getEventType(hfpData.topic)
-        if (eventType == EventType.LightPriorityEvent) {
-            safeParseLightPriorityEvent(hfpData)?.let { messageQueue.put(it to msgId) }
+        val event = if (eventType == EventType.LightPriorityEvent) {
+            safeParseLightPriorityEvent(hfpData)
         } else {
-            safeParseEvent(hfpData)?.let { messageQueue.put(it to msgId) }
+            safeParseEvent(hfpData)
+        }
+
+        if (event != null) {
+            messageQueue.put(event to msgId)
+        } else {
+            //Ack messages that could not be parsed so that we don't receive them again
+            msgAcknowledger(msgId)
         }
     }
 
