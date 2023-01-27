@@ -172,7 +172,6 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
          */
         fun createDWFile(blobIdentifier: BlobIdentifier): DWFile {
             val path = dataDirectory.resolve(blobIdentifier.blobName)
-            Files.createDirectories(path.parent)
 
             val hfpEventType = Hfp.Topic.EventType.valueOf(blobIdentifier.eventType)
 
