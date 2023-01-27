@@ -80,7 +80,11 @@ class DWService(
 
             log.info { "Writing ${messages.size} messages to CSV files" }
 
-            val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
+            val messageAndFile = messages.map { it to getDWFile(it.first) }
+            log.info { "Created all necessary files" }
+
+            //TODO: revert this after testing
+            val messagesByFile = messageAndFile.groupBy { it.second }.mapValues { it.value.map { it.first } }
 
             log.info { "Amount of messages per file: ${messagesByFile.map { it.key.path to it.value.size }.joinToString("\n")}"}
 
