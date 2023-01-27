@@ -19,7 +19,7 @@ class TimestampValidator(private val maxPast: Duration, private val maxFuture: D
 
         val valid = tstAsInstant >= lowerBound && tstAsInstant <= upperBound
         if (!valid) {
-            log.warn { "Timestamp (tst: ${DateTimeFormatter.ISO_INSTANT.format(tstAsInstant)}) was outside of accepted range [${DateTimeFormatter.ISO_INSTANT.format(lowerBound)} - ${DateTimeFormatter.ISO_INSTANT.format(upperBound)}] for vehicle: ${event.uniqueVehicleId}" }
+            log.debug { "Timestamp (tst: ${DateTimeFormatter.ISO_INSTANT.format(tstAsInstant)}) was outside of accepted range [${DateTimeFormatter.ISO_INSTANT.format(lowerBound)} - ${DateTimeFormatter.ISO_INSTANT.format(upperBound)}] for vehicle: ${event.uniqueVehicleId}" }
         }
 
         return valid

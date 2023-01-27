@@ -21,7 +21,7 @@ class OdayValidator(private val timezone: ZoneId, private val maxPast: Int, priv
 
         val valid = oday >= lowerBound && oday <= upperBound
         if (!valid) {
-            log.warn { "Oday ($oday) was outside of accepted range [$lowerBound - $upperBound] for vehicle ${event.uniqueVehicleId}" }
+            log.debug { "Oday ($oday) was outside of accepted range [$lowerBound - $upperBound] for vehicle ${event.uniqueVehicleId}" }
         }
 
         return valid
