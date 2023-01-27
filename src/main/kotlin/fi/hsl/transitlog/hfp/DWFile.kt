@@ -144,8 +144,8 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             private val PRIVATE_EVENTS = setOf("DA", "DOUT", "BA", "BOUT")
         }
 
-        data class BlobIdentifier(val baseName: String, val eventType: String, val journeyType: String, val private: Boolean, val invalid: Boolean) {
-            val blobName = "${baseName}_${eventType}${if (private) { "_private" } else { "" }}${if (invalid) { "_invalid" } else { "" }}.csv.zst"
+        data class BlobIdentifier(val baseName: String, val eventType: EventType, val hfpEventType: Hfp.Topic.EventType, val private: Boolean, val invalid: Boolean) {
+            val blobName = "${baseName}_${hfpEventType}${if (private) { "_private" } else { "" }}${if (invalid) { "_invalid" } else { "" }}.csv.zst"
         }
 
         private fun isValidEvent(event: IEvent): Boolean = validators.all { it.isValidEvent(event) }
@@ -167,10 +167,13 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             val private = isPrivate(event)
             val invalid = !isValidEvent(event)
 
-            val blobIdentifier = BlobIdentifier(baseName, event.eventType!!, event.journeyType!!, private, invalid)
-            log.info { "Created blob identifier $blobIdentifier for event $event" }
+            val hfpEventType = Hfp.Topic.EventType.valueOf(event.eventType!!)
 
-            return blobIdentifier
+            //Use OtherEvent as default in case new event types are added
+            val eventType = EventType.getEventType(Hfp.Topic.JourneyType.valueOf(event.journeyType!!), hfpEventType)
+                ?: EventType.OtherEvent
+
+            return BlobIdentifier(baseName, eventType, hfpEventType, private, invalid)
         }
 
         /**
@@ -179,12 +182,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
         fun createDWFile(blobIdentifier: BlobIdentifier): DWFile {
             val path = dataDirectory.resolve(blobIdentifier.blobName)
 
-            val hfpEventType = Hfp.Topic.EventType.valueOf(blobIdentifier.eventType)
-
-            //Use OtherEvent as default in case new event types are added
-            val eventType = EventType.getEventType(Hfp.Topic.JourneyType.valueOf(blobIdentifier.journeyType), hfpEventType) ?: EventType.OtherEvent
-
-            return DWFile(path, blobIdentifier.private, blobIdentifier.blobName, eventType.csvHeader, hfpEventType, compressionLevel)
+            return DWFile(path, blobIdentifier.private, blobIdentifier.blobName, blobIdentifier.eventType.csvHeader, blobIdentifier.hfpEventType, compressionLevel)
         }
     }
 }
