@@ -171,7 +171,10 @@ class DWService(
     }
 
     private fun getDWFile(event: IEvent): DWFile = dwFiles.computeIfAbsent(fileFactory.createBlobIdentifier(event)) {
-        fileFactory.createDWFile(it)
+        log.info { "Creating DWFile for $it" }
+        val file = fileFactory.createDWFile(it)
+        log.info { "Created DWFile for $it" }
+        return@computeIfAbsent file
     }
 
     fun addEvent(hfpData: Data, msgId: MessageId) {

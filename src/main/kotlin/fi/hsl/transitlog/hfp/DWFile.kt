@@ -164,7 +164,13 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
 
             val baseName = "$timestampFormatted-$minuteNumber"
 
-            return BlobIdentifier(baseName, event.eventType!!, event.journeyType!!, isPrivate(event), !isValidEvent(event))
+            val private = isPrivate(event)
+            val invalid = !isValidEvent(event)
+
+            val blobIdentifier = BlobIdentifier(baseName, event.eventType!!, event.journeyType!!, private, invalid)
+            log.info { "Created blob identifier $blobIdentifier for event $event" }
+
+            return blobIdentifier
         }
 
         /**
