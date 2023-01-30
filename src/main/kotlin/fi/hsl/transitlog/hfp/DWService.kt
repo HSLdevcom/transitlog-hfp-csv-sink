@@ -80,7 +80,19 @@ class DWService(
 
             log.info { "Writing ${messages.size} messages to CSV files" }
 
-            val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
+            val blobIdentifiers = messages.map { it.first }.associateWith { fileFactory.createBlobIdentifier(it) }
+            log.info { "Created ${blobIdentifiers.values.distinct().count()} blob identifiers" }
+            val filesByBlobIdentifier = blobIdentifiers.values.associateWith {
+                if (it !in dwFiles) {
+                    log.info { "Creating file for $it" }
+                    dwFiles[it] = fileFactory.createDWFile(it)
+                    log.info { "Created file for $it" }
+                }
+                dwFiles[it]!!
+            }
+            log.info { "Created ${filesByBlobIdentifier.size} files" }
+
+            val messagesByFile = messages.groupBy { (hfpData, _) -> filesByBlobIdentifier[blobIdentifiers[hfpData]]!! }
 
             log.info { "Amount of messages per file: ${messagesByFile.map { it.key.path to it.value.size }.joinToString("\n")}"}
 
