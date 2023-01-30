@@ -170,11 +170,21 @@ class DWService(
         return Duration.ofMillis(now.until(initialUploadTime, ChronoUnit.MILLIS))
     }
 
-    private fun getDWFile(event: IEvent): DWFile = dwFiles.computeIfAbsent(fileFactory.createBlobIdentifier(event)) {
-        log.info { "Creating DWFile for $it" }
-        val file = fileFactory.createDWFile(it)
-        log.info { "Created DWFile for $it" }
-        return@computeIfAbsent file
+    private fun getDWFile(event: IEvent): DWFile {
+        /*dwFiles.computeIfAbsent(fileFactory.createBlobIdentifier(event)) {
+            log.info { "Creating DWFile for $it" }
+            val file = fileFactory.createDWFile(it)
+            log.info { "Created DWFile for $it" }
+            return@computeIfAbsent file
+        }*/
+
+        val blobId = fileFactory.createBlobIdentifier(event)
+        return if (dwFiles.contains(blobId)) {
+            dwFiles[blobId]!!
+        } else {
+            dwFiles[blobId] = fileFactory.createDWFile(blobId)
+            dwFiles[blobId]!!
+        }
     }
 
     fun addEvent(hfpData: Data, msgId: MessageId) {
