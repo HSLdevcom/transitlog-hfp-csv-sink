@@ -26,12 +26,12 @@ class DWServiceTest {
 
     private val testDataStartTime = ZonedDateTime.of(LocalDate.of(2021, 1, 1), LocalTime.of(8, 0), ZoneId.of("Europe/Helsinki"))
 
-    private fun generateTestData(): List<Hfp.Data>  = (1..1000).map { i ->
+    private fun generateTestData(): List<Hfp.Data>  = (1..10000).map { i ->
         Hfp.Data.newBuilder()
             .setTopic(
                 Hfp.Topic.newBuilder()
                 .setDirectionId(1)
-                .setEventType(Hfp.Topic.EventType.VP)
+                .setEventType(Hfp.Topic.EventType.values().random())
                 .setGeohashLevel(5)
                 .setHeadsign("Test")
                 .setJourneyType(Hfp.Topic.JourneyType.journey)
