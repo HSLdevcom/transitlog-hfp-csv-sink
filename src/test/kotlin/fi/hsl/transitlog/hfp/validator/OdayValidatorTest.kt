@@ -52,4 +52,19 @@ class OdayValidatorTest {
 
         assertFalse { odayValidator.isValidEvent(event) }
     }
+
+    @Test
+    fun `Test validating journey event with missing oday`() {
+        val time = ZonedDateTime.now(TIMEZONE).toOffsetDateTime()
+
+        val event = Event(
+            UUID.randomUUID(),
+            time,
+            receivedAt = time.toInstant(),
+            oday = null,
+            journeyType = "journey"
+        )
+
+        assertFalse { odayValidator.isValidEvent(event) }
+    }
 }

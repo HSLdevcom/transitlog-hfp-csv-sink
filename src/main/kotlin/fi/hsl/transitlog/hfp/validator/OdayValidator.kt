@@ -8,9 +8,9 @@ private val log = KotlinLogging.logger {}
 
 class OdayValidator(private val timezone: ZoneId, private val maxPast: Int, private val maxFuture: Int) : EventValidator {
     override fun isValidEvent(event: IEvent): Boolean {
-        //Only "journey" type events should have oday value
-        if (event.oday == null && event.journeyType != "journey") {
-            return true
+        if (event.oday == null) {
+            //If oday is missing, the data is valid only if its journey type is not journey (i.e. the vehicle is on a deadrun)
+            return event.journeyType != "journey"
         }
 
         val oday = event.oday!!
