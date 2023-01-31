@@ -80,7 +80,11 @@ class DWService(
 
             log.info { "Writing ${messages.size} messages to CSV files" }
 
-            val blobIdentifiers = messages.map { it.first }.associateWith { fileFactory.createBlobIdentifier(it) }
+            val blobIdentifiers = mutableMapOf<IEvent, DWFile.FileFactory.BlobIdentifier>()
+            for (event in messages.map { it.first }) {
+                blobIdentifiers[event] = fileFactory.createBlobIdentifier(event)
+            }
+
             log.info { "Created ${blobIdentifiers.values.distinct().count()} blob identifiers" }
             val filesByBlobIdentifier = blobIdentifiers.values.associateWith {
                 if (it !in dwFiles) {
