@@ -80,29 +80,7 @@ class DWService(
 
             log.info { "Writing ${messages.size} messages to CSV files" }
 
-            val blobIdentifiers = mutableMapOf<IEvent, DWFile.FileFactory.BlobIdentifier>()
-            var i = 0;
-            val events = messages.map { it.first }
-            for (event in events) {
-                blobIdentifiers[event] = fileFactory.createBlobIdentifier(event)
-                log.info { "Created blob identifier ${i++} for event: $event, next event: ${events[i]}" }
-            }
-
-            log.info { "Created ${blobIdentifiers.values.distinct().count()} blob identifiers" }
-            val filesByBlobIdentifier = blobIdentifiers.values.associateWith {
-                if (it !in dwFiles) {
-                    log.info { "Creating file for $it" }
-                    dwFiles[it] = fileFactory.createDWFile(it)
-                    log.info { "Created file for $it" }
-                }
-                dwFiles[it]!!
-            }
-            log.info { "Created ${filesByBlobIdentifier.size} files" }
-
-            val messagesByFile = messages.groupBy { (hfpData, _) -> filesByBlobIdentifier[blobIdentifiers[hfpData]]!! }
-
-            log.info { "Amount of messages per file: ${messagesByFile.map { it.key.path to it.value.size }.joinToString("\n")}"}
-
+            val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
             //Write messages to files
             val completionService = ExecutorCompletionService<Void>(fileWriterExecutorService)
             messagesByFile.map { (dwFile, messages) -> completionService.submit(DWFileWriterRunnable(dwFile, messages), null) }
@@ -189,21 +167,8 @@ class DWService(
         return Duration.ofMillis(now.until(initialUploadTime, ChronoUnit.MILLIS))
     }
 
-    private fun getDWFile(event: IEvent): DWFile {
-        /*dwFiles.computeIfAbsent(fileFactory.createBlobIdentifier(event)) {
-            log.info { "Creating DWFile for $it" }
-            val file = fileFactory.createDWFile(it)
-            log.info { "Created DWFile for $it" }
-            return@computeIfAbsent file
-        }*/
-
-        val blobId = fileFactory.createBlobIdentifier(event)
-        return if (dwFiles.contains(blobId)) {
-            dwFiles[blobId]!!
-        } else {
-            dwFiles[blobId] = fileFactory.createDWFile(blobId)
-            dwFiles[blobId]!!
-        }
+    private fun getDWFile(event: IEvent): DWFile = dwFiles.computeIfAbsent(fileFactory.createBlobIdentifier(event)) {
+        fileFactory.createDWFile(it)
     }
 
     fun addEvent(hfpData: Data, msgId: MessageId) {
