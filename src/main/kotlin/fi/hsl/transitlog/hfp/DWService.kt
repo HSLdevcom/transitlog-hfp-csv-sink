@@ -81,8 +81,11 @@ class DWService(
             log.info { "Writing ${messages.size} messages to CSV files" }
 
             val blobIdentifiers = mutableMapOf<IEvent, DWFile.FileFactory.BlobIdentifier>()
-            for (event in messages.map { it.first }) {
+            var i = 0;
+            val events = messages.map { it.first }
+            for (event in events) {
                 blobIdentifiers[event] = fileFactory.createBlobIdentifier(event)
+                log.info { "Created blob identifier ${i++} for event: $event, next event: ${events[i]}" }
             }
 
             log.info { "Created ${blobIdentifiers.values.distinct().count()} blob identifiers" }
