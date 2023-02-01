@@ -25,7 +25,7 @@ import kotlin.reflect.full.declaredMemberProperties
 
 private val log = KotlinLogging.logger {}
 
-class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType, compressionLevel: Int) : AutoCloseable {
+class DWFile private constructor(val path: Path, val private: Boolean, val invalid: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType, compressionLevel: Int) : AutoCloseable {
     companion object {
         private const val WRITE_BUFFER_SIZE = 32768 //32KiB
     }
@@ -103,6 +103,10 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             "row_count" to rowCount.toString(),
             "eventType" to eventType.toString()
         )
+
+        if (invalid) {
+            metadata["invalid"] = true.toString()
+        }
 
         if (minTst != null) {
             metadata["min_tst"] = minTst!!.format(DateTimeFormatter.ISO_INSTANT)
@@ -182,7 +186,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
         fun createDWFile(blobIdentifier: BlobIdentifier): DWFile {
             val path = dataDirectory.resolve(blobIdentifier.blobName)
 
-            return DWFile(path, blobIdentifier.private, blobIdentifier.blobName, blobIdentifier.eventType.csvHeader, blobIdentifier.hfpEventType, compressionLevel)
+            return DWFile(path, blobIdentifier.private, blobIdentifier.invalid, blobIdentifier.blobName, blobIdentifier.eventType.csvHeader, blobIdentifier.hfpEventType, compressionLevel)
         }
     }
 }
