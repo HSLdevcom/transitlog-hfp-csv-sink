@@ -104,9 +104,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val inval
             "eventType" to eventType.toString()
         )
 
-        if (invalid) {
-            metadata["invalid"] = true.toString()
-        }
+        metadata["invalid"] = invalid.toString()
 
         if (minTst != null) {
             metadata["min_tst"] = minTst!!.format(DateTimeFormatter.ISO_INSTANT)
