@@ -4,6 +4,7 @@ import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.transitlog.hfp.domain.EventType
 import fi.hsl.transitlog.hfp.domain.IEvent
 import fi.hsl.transitlog.hfp.utils.Deduplicator
+import fi.hsl.transitlog.hfp.validator.EventValidator
 import mu.KotlinLogging
 import org.apache.commons.codec.digest.MurmurHash3
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
@@ -14,66 +15,20 @@ import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.*
+import java.time.Duration
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
 
-class DWFile private constructor(val path: Path, val private: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType, compressionLevel: Int) : AutoCloseable {
+private val log = KotlinLogging.logger {}
+
+class DWFile private constructor(val path: Path, val private: Boolean, val invalid: Boolean, val blobName: String, private val csvHeader: List<String>, private val eventType: Hfp.Topic.EventType, compressionLevel: Int) : AutoCloseable {
     companion object {
-        private const val WRITE_BUFFER_SIZE = 32768
-
-        private val HFP_TIMEZONE = ZoneId.of("Europe/Helsinki")
-        private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
-
-        //Events that contain private data and that should be always uploaded to private blob container
-        private val PRIVATE_EVENTS = setOf(Hfp.Topic.EventType.DA, Hfp.Topic.EventType.DOUT, Hfp.Topic.EventType.BA, Hfp.Topic.EventType.BOUT)
-
-        fun createBlobName(hfpData: Hfp.Data): String {
-            //Append "_private" to files that contain private data
-            val private = if (hfpData.topic.isPrivateData()) {
-                "_private"
-            } else {
-                ""
-            }
-
-            //Use MQTT received timestamp for file names (messages can get delayed and relying on tst timestamp could cause files to be overwritten)
-            val localDateTime = Instant.ofEpochMilli(hfpData.topic.receivedAt).atZone(HFP_TIMEZONE).toLocalDateTime()
-            val timestamp = localDateTime.format(DATE_HOUR_FORMATTER)
-
-            //Create files that contain 15min data
-            val minuteNumber = 1 + (localDateTime.minute / 15)
-
-            return "$timestamp-${minuteNumber}_${hfpData.topic.eventType}$private.csv.zst"
-        }
-
-        private fun Hfp.Topic.isPrivateData(): Boolean {
-            //If the journey type is not "journey", the data is always private
-            if (journeyType != Hfp.Topic.JourneyType.journey) {
-                return true
-            }
-
-            //Otherwise, check if the event type is private
-            return eventType in PRIVATE_EVENTS
-        }
-
-        /**
-         * @param dataDirectory Directory where the file will be stored
-         */
-        fun createDWFile(hfpData: Hfp.Data, dataDirectory: Path = Files.createTempDirectory("hfp"), compressionLevel: Int): DWFile {
-            val blobName = createBlobName(hfpData)
-
-            val path = dataDirectory.resolve(blobName)
-            Files.createDirectories(path.parent)
-
-            //Use OtherEvent as default in case new event types are added
-            val eventType = EventType.getEventType(hfpData.topic) ?: EventType.OtherEvent
-
-            return DWFile(path, hfpData.topic.isPrivateData(), blobName, eventType.csvHeader, hfpData.topic.eventType, compressionLevel)
-        }
+        private const val WRITE_BUFFER_SIZE = 32768 //32KiB
     }
-
-    private val log = KotlinLogging.logger {}
 
     private val csvPrinter = CSVPrinter(
         OutputStreamWriter(ZstdCompressorOutputStream(BufferedOutputStream(Files.newOutputStream(path), WRITE_BUFFER_SIZE), compressionLevel), StandardCharsets.UTF_8),
@@ -149,6 +104,8 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             "eventType" to eventType.toString()
         )
 
+        metadata["invalid"] = invalid.toString()
+
         if (minTst != null) {
             metadata["min_tst"] = minTst!!.format(DateTimeFormatter.ISO_INSTANT)
         }
@@ -174,5 +131,60 @@ class DWFile private constructor(val path: Path, val private: Boolean, val blobN
             csvPrinter.close(true)
         }
         open = false
+    }
+
+    /**
+     * Factory for creating DWFiles
+     *
+     * @param timezone Timezone that is used in the file name
+     */
+    class FileFactory(private val dataDirectory: Path, private val compressionLevel: Int, private val timezone: ZoneId, private val validators: List<EventValidator> = emptyList()) {
+        companion object {
+            private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
+
+            //Events that contain private data and that should be always uploaded to private blob container
+            private val PRIVATE_EVENTS = setOf("DA", "DOUT", "BA", "BOUT")
+        }
+
+        data class BlobIdentifier(val baseName: String, val eventType: EventType, val hfpEventType: Hfp.Topic.EventType, val private: Boolean, val invalid: Boolean) {
+            val blobName = "${baseName}_${hfpEventType}${if (private) { "_private" } else { "" }}${if (invalid) { "_invalid" } else { "" }}.csv.zst"
+        }
+
+        private fun isValidEvent(event: IEvent): Boolean = validators.all { it.isValidEvent(event) }
+
+        private fun isPrivate(event: IEvent): Boolean {
+            return event.journeyType != "journey" || event.eventType in PRIVATE_EVENTS
+        }
+
+        fun createBlobIdentifier(event: IEvent): BlobIdentifier {
+            //Use MQTT received timestamp for file names (messages can get delayed and relying on tst timestamp could cause files to be overwritten)
+            val localDateTime = event.receivedAt!!.atZone(timezone).toLocalDateTime()
+            val timestampFormatted = localDateTime.format(DATE_HOUR_FORMATTER)
+
+            //Create files that contain 15min data (1 -> data for minutes 0-14, 2 -> data for minutes 15-29 etc.)
+            val minuteNumber = 1 + (localDateTime.minute / 15)
+
+            val baseName = "$timestampFormatted-$minuteNumber"
+
+            val private = isPrivate(event)
+            val invalid = !isValidEvent(event)
+
+            val hfpEventType = Hfp.Topic.EventType.valueOf(event.eventType!!)
+
+            //Use OtherEvent as default in case new event types are added
+            val eventType = EventType.getEventType(Hfp.Topic.JourneyType.valueOf(event.journeyType!!), hfpEventType)
+                ?: EventType.OtherEvent
+
+            return BlobIdentifier(baseName, eventType, hfpEventType, private, invalid)
+        }
+
+        /**
+         * Creates a DWFile based on the identifier. The same DWFile should be reused for writing data with same identifier i.e. DWFile instances should be stored to a map etc.
+         */
+        fun createDWFile(blobIdentifier: BlobIdentifier): DWFile {
+            val path = dataDirectory.resolve(blobIdentifier.blobName)
+
+            return DWFile(path, blobIdentifier.private, blobIdentifier.invalid, blobIdentifier.blobName, blobIdentifier.eventType.csvHeader, blobIdentifier.hfpEventType, compressionLevel)
+        }
     }
 }

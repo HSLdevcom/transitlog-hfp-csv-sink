@@ -1,25 +1,26 @@
 package fi.hsl.transitlog.hfp.domain
 
 import fi.hsl.common.hfp.proto.Hfp
+import fi.hsl.common.hfp.proto.Hfp.Topic.JourneyType
 import mu.KotlinLogging
 import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberProperties
 
 enum class EventType(private val dataClass: KClass<*>) {
-    VehiclePosition(fi.hsl.transitlog.hfp.domain.Event::class), StopEvent(fi.hsl.transitlog.hfp.domain.Event::class), LightPriorityEvent(fi.hsl.transitlog.hfp.domain.LightPriorityEvent::class), OtherEvent(fi.hsl.transitlog.hfp.domain.Event::class), UnsignedEvent(fi.hsl.transitlog.hfp.domain.Event::class);
+    VehiclePosition(Event::class), StopEvent(Event::class), LightPriorityEvent(fi.hsl.transitlog.hfp.domain.LightPriorityEvent::class), OtherEvent(Event::class), UnsignedEvent(Event::class);
 
     val csvHeader by lazy { dataClass.declaredMemberProperties.sortedBy { it.name }.map { it.name } }
 
     companion object {
         private val log = KotlinLogging.logger {}
 
-        fun getEventType(hfpTopic: Hfp.Topic): EventType? {
-            return when(hfpTopic.eventType) {
+        fun getEventType(journeyType: JourneyType, eventType: Hfp.Topic.EventType): EventType? {
+            return when(eventType) {
                 Hfp.Topic.EventType.VP -> {
-                    if (hfpTopic.journeyType == Hfp.Topic.JourneyType.deadrun) {
-                        UnsignedEvent
-                    } else {
+                    if (journeyType == JourneyType.journey) {
                         VehiclePosition
+                    } else {
+                        UnsignedEvent
                     }
                 }
                 Hfp.Topic.EventType.DUE,
@@ -46,10 +47,12 @@ enum class EventType(private val dataClass: KClass<*>) {
                     OtherEvent
                 }
                 else -> {
-                    log.warn { "Received HFP message with unknown event type ${hfpTopic.eventType}" }
+                    log.warn { "Received HFP message with unknown event type $eventType" }
                     null
                 }
             }
         }
+
+        fun getEventType(hfpTopic: Hfp.Topic): EventType? = getEventType(hfpTopic.journeyType, hfpTopic.eventType)
     }
 }
