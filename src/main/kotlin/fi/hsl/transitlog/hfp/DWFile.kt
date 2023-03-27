@@ -15,10 +15,7 @@ import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.Duration
-import java.time.LocalDate
-import java.time.OffsetDateTime
-import java.time.ZoneId
+import java.time.*
 import java.time.format.DateTimeFormatter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
@@ -138,7 +135,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val inval
      *
      * @param timezone Timezone that is used in the file name
      */
-    class FileFactory(private val dataDirectory: Path, private val compressionLevel: Int, private val timezone: ZoneId, private val validators: List<EventValidator> = emptyList()) {
+    class FileFactory(private val dataDirectory: Path, private val compressionLevel: Int, private val validators: List<EventValidator> = emptyList()) {
         companion object {
             private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
 
@@ -147,7 +144,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val inval
         }
 
         data class BlobIdentifier(val baseName: String, val eventType: EventType, val hfpEventType: Hfp.Topic.EventType, val private: Boolean, val invalid: Boolean) {
-            val blobName = "${baseName}_${hfpEventType}${if (private) { "_private" } else { "" }}${if (invalid) { "_invalid" } else { "" }}.csv.zst"
+            val blobName = "${baseName}_utc_${hfpEventType}${if (private) { "_private" } else { "" }}${if (invalid) { "_invalid" } else { "" }}.csv.zst"
         }
 
         private fun isValidEvent(event: IEvent): Boolean = validators.all { it.isValidEvent(event) }
@@ -158,7 +155,7 @@ class DWFile private constructor(val path: Path, val private: Boolean, val inval
 
         fun createBlobIdentifier(event: IEvent): BlobIdentifier {
             //Use MQTT received timestamp for file names (messages can get delayed and relying on tst timestamp could cause files to be overwritten)
-            val localDateTime = event.receivedAt!!.atZone(timezone).toLocalDateTime()
+            val localDateTime = event.receivedAt!!.atOffset(ZoneOffset.UTC).toLocalDateTime()
             val timestampFormatted = localDateTime.format(DATE_HOUR_FORMATTER)
 
             //Create files that contain 15min data (1 -> data for minutes 0-14, 2 -> data for minutes 15-29 etc.)
