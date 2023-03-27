@@ -12,7 +12,6 @@ import org.apache.pulsar.client.api.MessageId
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
-import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
@@ -49,7 +48,7 @@ class DWService(
     private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<DWFile.FileFactory.BlobIdentifier, DWFile>()
 
-    private val fileFactory = DWFile.FileFactory(dataDirectory, compressionLevel, ZoneId.of("Europe/Helsinki"), validators)
+    private val fileFactory = DWFile.FileFactory(dataDirectory, compressionLevel, validators)
 
     private inner class DWFileWriterRunnable(private val dwFile: DWFile, private val messages: List<Pair<IEvent, MessageId>>) : Runnable {
         override fun run() {
