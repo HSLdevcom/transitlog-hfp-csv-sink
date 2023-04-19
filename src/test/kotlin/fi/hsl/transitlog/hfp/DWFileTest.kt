@@ -71,7 +71,7 @@ class DWFileTest {
     fun `Test writing events`() {
         val hfp = generateTestData()
 
-        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19, ZoneId.of("Europe/Helsinki"))
+        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19)
 
         val event = Event.parse(hfp[0].topic, hfp[0].payload)
         val identifier = fileFactory.createBlobIdentifier(event)
@@ -82,7 +82,7 @@ class DWFileTest {
 
             dwFile.close()
 
-            assertEquals("2021-01-01T08-1_VP.csv.zst", dwFile.blobName)
+            assertEquals("2021-01-01T06-1_utc_VP.csv.zst", dwFile.blobName)
             assertFalse(dwFile.private)
             assertTrue(Files.size(dwFile.path) > 0, "File size greater than 0")
 
@@ -101,7 +101,7 @@ class DWFileTest {
     fun `Test creating blob identifiers`() {
         val tz = ZoneId.of("Europe/Helsinki")
 
-        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19, tz, listOf(OdayValidator(tz, 2, 2)))
+        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19, listOf(OdayValidator(tz, 2, 2)))
 
         val event = Event(UUID.randomUUID(), OffsetDateTime.now(), eventType = "VP", journeyType = "journey", receivedAt = Instant.now(), oday = ZonedDateTime.now(tz).toLocalDate())
 
