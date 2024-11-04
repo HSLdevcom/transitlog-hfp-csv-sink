@@ -49,14 +49,11 @@ dependencies {
 
     implementation ('fi.hsl:transitdata-common:1.6.6-RC') {
         exclude group: 'javax.xml.bind', module: 'activation'
-
-        // Force the use of the jre variant of Guava
-        capabilities {
-            requireCapability 'com.google.guava:guava:jre'
-        }
+        exclude group: 'com.google.guava', module: 'guava'
     }
     //Needed for Pulsar
     implementation 'jaxb:activation:1.0.2'
+    implementation 'com.google.guava:guava:32.1.1-jre'
 
     implementation "com.azure:azure-storage-blob:12.13.0"
     implementation "io.netty:netty-tcnative-boringssl-static:2.0.39.Final"
