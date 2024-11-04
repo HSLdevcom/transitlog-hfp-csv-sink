@@ -133,6 +133,7 @@ class DWService(
 
                         filesUploaded++
                     } catch (e: Exception) {
+                        e.printStackTrace()
                         log.error(e) {
                             "Failed to upload file to Blob Storage"
                         }
