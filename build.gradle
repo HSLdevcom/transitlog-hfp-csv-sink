@@ -47,7 +47,7 @@ dependencies {
 
     implementation "io.github.microutils:kotlin-logging:1.6.22"
 
-    implementation ('fi.hsl:transitdata-common:1.6.4') {
+    implementation ('fi.hsl:transitdata-common:1.6.6-RC') {
         exclude group: 'javax.xml.bind', module: 'activation'
     }
     //Needed for Pulsar
