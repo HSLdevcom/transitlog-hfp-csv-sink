@@ -49,6 +49,11 @@ dependencies {
 
     implementation ('fi.hsl:transitdata-common:1.6.6-RC') {
         exclude group: 'javax.xml.bind', module: 'activation'
+
+        // Force the use of the jre variant of Guava
+        capabilities {
+            requireCapability 'com.google.guava:guava:jre'
+        }
     }
     //Needed for Pulsar
     implementation 'jaxb:activation:1.0.2'
