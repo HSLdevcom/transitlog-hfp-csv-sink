@@ -121,11 +121,9 @@ class DWService(
                         (if (dwFile.private) { privateSink } else { sink }).upload(dwFile.path, name = dwFile.blobName, metadata = dwFile.getMetadata())
                         
                         //Acknowledge all messages that were in the file
-                        val ackMsgIds = msgIds[dwFile.path]
-                        if (ackMsgIds != null) {
-                            log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
-                            ackMsgIds.forEach(msgAcknowledger)
-                        }
+                        val ackMsgIds = msgIds[dwFile.path]!!
+                        log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
+                        ackMsgIds.forEach(msgAcknowledger)
                         log.debug { "Messages written to ${dwFile.path} acknowledged" }
 
                         msgIds.remove(dwFile.path)
