@@ -7,13 +7,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-
 class DeduplicatorTest {
     private lateinit var deduplicator: Deduplicator<String, String>
 
     private fun md5(input: String): String {
         val md = MessageDigest.getInstance("MD5")
-        return BigInteger(1, md.digest(input.toByteArray(Charsets.UTF_8))).toString(16).padStart(32, '0')
+        return BigInteger(1, md.digest(input.toByteArray(Charsets.UTF_8)))
+            .toString(16)
+            .padStart(32, '0')
     }
 
     @BeforeTest

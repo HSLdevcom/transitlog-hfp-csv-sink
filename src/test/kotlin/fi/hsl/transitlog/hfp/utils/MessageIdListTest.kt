@@ -1,10 +1,10 @@
 package fi.hsl.transitlog.hfp.utils
 
-import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.Test
 
 class MessageIdListTest {
     @Test
@@ -33,7 +33,13 @@ class MessageIdListTest {
         val messageIdList = MessageIdList()
 
         for (i in 0..10_000_000) {
-            val bytes = byteArrayOf((i shr 0).toByte(), (i shr 8).toByte(), (i shr 16).toByte(), (i shr 24).toByte())
+            val bytes =
+                byteArrayOf(
+                    (i shr 0).toByte(),
+                    (i shr 8).toByte(),
+                    (i shr 16).toByte(),
+                    (i shr 24).toByte()
+                )
             messageIdList.addId(bytes)
             uncompressed.writeBytes(bytes)
         }

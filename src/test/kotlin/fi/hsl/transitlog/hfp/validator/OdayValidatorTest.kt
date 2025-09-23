@@ -25,14 +25,10 @@ class OdayValidatorTest {
     fun `Test validating valid date`() {
         val date = LocalDate.of(2023, 1, 1)
 
-        val time = ZonedDateTime.of(date.plusDays(1), LocalTime.of(7, 30), TIMEZONE).toOffsetDateTime()
+        val time =
+            ZonedDateTime.of(date.plusDays(1), LocalTime.of(7, 30), TIMEZONE).toOffsetDateTime()
 
-        val event = Event(
-            UUID.randomUUID(),
-            time,
-            receivedAt = time.toInstant(),
-            oday = date
-        )
+        val event = Event(UUID.randomUUID(), time, receivedAt = time.toInstant(), oday = date)
 
         assertTrue { odayValidator.isValidEvent(event) }
     }
@@ -41,14 +37,10 @@ class OdayValidatorTest {
     fun `Test validating invalid date`() {
         val date = LocalDate.of(2023, 1, 1)
 
-        val time = ZonedDateTime.of(date.plusDays(7), LocalTime.of(7, 30), TIMEZONE).toOffsetDateTime()
+        val time =
+            ZonedDateTime.of(date.plusDays(7), LocalTime.of(7, 30), TIMEZONE).toOffsetDateTime()
 
-        val event = Event(
-            UUID.randomUUID(),
-            time,
-            receivedAt = time.toInstant(),
-            oday = date
-        )
+        val event = Event(UUID.randomUUID(), time, receivedAt = time.toInstant(), oday = date)
 
         assertFalse { odayValidator.isValidEvent(event) }
     }
@@ -57,13 +49,14 @@ class OdayValidatorTest {
     fun `Test validating journey event with missing oday`() {
         val time = ZonedDateTime.now(TIMEZONE).toOffsetDateTime()
 
-        val event = Event(
-            UUID.randomUUID(),
-            time,
-            receivedAt = time.toInstant(),
-            oday = null,
-            journeyType = "journey"
-        )
+        val event =
+            Event(
+                UUID.randomUUID(),
+                time,
+                receivedAt = time.toInstant(),
+                oday = null,
+                journeyType = "journey"
+            )
 
         assertFalse { odayValidator.isValidEvent(event) }
     }
