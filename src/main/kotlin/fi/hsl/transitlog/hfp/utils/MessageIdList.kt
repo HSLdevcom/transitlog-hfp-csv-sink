@@ -1,21 +1,20 @@
 package fi.hsl.transitlog.hfp.utils
 
-import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream
-import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream
 
-/**
- * Helper class for saving a list of Pulsar message IDs
- */
+/** Helper class for saving a list of Pulsar message IDs */
 class MessageIdList(estimatedSizeBytes: Int = 5 * 1024 * 1024) : Closeable {
     private val byteArrayOutputStream = ByteArrayOutputStream(estimatedSizeBytes)
 
-    private val dataOutputStream = DataOutputStream(ZstdCompressorOutputStream(byteArrayOutputStream, 19))
+    private val dataOutputStream =
+        DataOutputStream(ZstdCompressorOutputStream(byteArrayOutputStream, 19))
 
     private var closed = false
 
@@ -50,14 +49,17 @@ class MessageIdList(estimatedSizeBytes: Int = 5 * 1024 * 1024) : Closeable {
             throw IllegalStateException("Cannot get IDs if list is not closed for writing")
         }
 
-        val dataInputStream = DataInputStream(ZstdCompressorInputStream(ByteArrayInputStream(byteArrayOutputStream.toByteArray())))
+        val dataInputStream =
+            DataInputStream(
+                ZstdCompressorInputStream(ByteArrayInputStream(byteArrayOutputStream.toByteArray()))
+            )
 
         while (true) {
             try {
                 val nBytes = dataInputStream.readInt()
                 handler(dataInputStream.readNBytes(nBytes))
             } catch (eof: EOFException) {
-                //EOF is expected
+                // EOF is expected
                 break
             }
         }

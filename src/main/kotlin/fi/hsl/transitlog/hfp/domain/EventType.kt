@@ -2,20 +2,26 @@ package fi.hsl.transitlog.hfp.domain
 
 import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.common.hfp.proto.Hfp.Topic.JourneyType
-import mu.KotlinLogging
 import kotlin.reflect.KClass
 import kotlin.reflect.full.declaredMemberProperties
+import mu.KotlinLogging
 
 enum class EventType(private val dataClass: KClass<*>) {
-    VehiclePosition(Event::class), StopEvent(Event::class), LightPriorityEvent(fi.hsl.transitlog.hfp.domain.LightPriorityEvent::class), OtherEvent(Event::class), UnsignedEvent(Event::class);
+    VehiclePosition(Event::class),
+    StopEvent(Event::class),
+    LightPriorityEvent(fi.hsl.transitlog.hfp.domain.LightPriorityEvent::class),
+    OtherEvent(Event::class),
+    UnsignedEvent(Event::class);
 
-    val csvHeader by lazy { dataClass.declaredMemberProperties.sortedBy { it.name }.map { it.name } }
+    val csvHeader by lazy {
+        dataClass.declaredMemberProperties.sortedBy { it.name }.map { it.name }
+    }
 
     companion object {
         private val log = KotlinLogging.logger {}
 
         fun getEventType(journeyType: JourneyType, eventType: Hfp.Topic.EventType): EventType? {
-            return when(eventType) {
+            return when (eventType) {
                 Hfp.Topic.EventType.VP -> {
                     if (journeyType == JourneyType.journey) {
                         VehiclePosition
@@ -53,6 +59,7 @@ enum class EventType(private val dataClass: KClass<*>) {
             }
         }
 
-        fun getEventType(hfpTopic: Hfp.Topic): EventType? = getEventType(hfpTopic.journeyType, hfpTopic.eventType)
+        fun getEventType(hfpTopic: Hfp.Topic): EventType? =
+            getEventType(hfpTopic.journeyType, hfpTopic.eventType)
     }
 }

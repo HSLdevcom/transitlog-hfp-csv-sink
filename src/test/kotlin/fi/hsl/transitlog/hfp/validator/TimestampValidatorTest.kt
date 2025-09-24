@@ -21,11 +21,7 @@ class TimestampValidatorTest {
     fun `Test validating event with valid timestamp`() {
         val time = OffsetDateTime.now()
 
-        val event = Event(
-            UUID.randomUUID(),
-            time,
-            receivedAt = time.toInstant()
-        )
+        val event = Event(UUID.randomUUID(), time, receivedAt = time.toInstant())
 
         assertTrue { timestampValidator.isValidEvent(event) }
     }
@@ -34,11 +30,7 @@ class TimestampValidatorTest {
     fun `Test validating event with invalid timestamp`() {
         val time = OffsetDateTime.now()
 
-        val event = Event(
-            UUID.randomUUID(),
-            time,
-            receivedAt = time.plusHours(10).toInstant()
-        )
+        val event = Event(UUID.randomUUID(), time, receivedAt = time.plusHours(10).toInstant())
 
         assertFalse { timestampValidator.isValidEvent(event) }
     }

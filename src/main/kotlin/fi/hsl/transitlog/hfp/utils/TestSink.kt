@@ -1,13 +1,11 @@
 package fi.hsl.transitlog.hfp.utils
 
 import fi.hsl.transitlog.hfp.CSVSink
-import mu.KotlinLogging
 import java.nio.file.Files
 import java.nio.file.Path
+import mu.KotlinLogging
 
-/**
- * Sink that only logs information about the files when "uploading", nothing else
- */
+/** Sink that only logs information about the files when "uploading", nothing else */
 class TestSink : CSVSink {
     private val log = KotlinLogging.logger {}
 
