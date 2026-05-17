@@ -58,7 +58,9 @@ dependencies {
 
     implementation "io.github.microutils:kotlin-logging:1.6.22"
 
-    implementation ('fi.hsl:transitdata-common:2.0.5') {
+    implementation "com.azure:azure-identity:1.13.3"
+
+    implementation ('fi.hsl:transitdata-common:3.0.0') {
         exclude group: 'javax.xml.bind', module: 'activation'
         exclude group: 'com.google.guava', module: 'guava'
     }
