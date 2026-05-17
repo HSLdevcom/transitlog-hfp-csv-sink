@@ -1,5 +1,7 @@
 package fi.hsl.transitlog.hfp.azure
 
+import com.azure.identity.DefaultAzureCredentialBuilder
+import com.azure.storage.blob.BlobServiceClient
 import com.azure.storage.blob.BlobServiceClientBuilder
 import java.io.BufferedOutputStream
 import java.nio.file.Files
@@ -8,14 +10,36 @@ import mu.KotlinLogging
 
 private const val BUFFER_SIZE = 65536
 
-class BlobUploader(connectionString: String, blobContainer: String) {
+class BlobUploader private constructor(
+    private val blobServiceClient: BlobServiceClient,
+    private val blobContainer: String
+) {
     private val log = KotlinLogging.logger {}
 
-    private val blobServiceClient =
-        BlobServiceClientBuilder().connectionString(connectionString).buildClient()
+    companion object {
+        fun withDefaultAzureCredential(blobAccountName: String, blobContainer: String): BlobUploader {
+            val client = BlobServiceClientBuilder()
+                .endpoint("https://$blobAccountName.blob.core.windows.net")
+                .credential(DefaultAzureCredentialBuilder().build())
+                .buildClient()
+
+            return BlobUploader(client, blobContainer)
+        }
+
+        fun withConnectionString(connectionString: String, blobContainer: String): BlobUploader {
+            val client = BlobServiceClientBuilder()
+                .connectionString(connectionString)
+                .buildClient()
+
+            return BlobUploader(client, blobContainer)
+        }
+    }
+
     private val blobContainerClient by lazy {
-        if (blobServiceClient.getBlobContainerClient(blobContainer).exists()) {
-            blobServiceClient.getBlobContainerClient(blobContainer)
+        val containerClient = blobServiceClient.getBlobContainerClient(blobContainer)
+
+        if (containerClient.exists()) {
+            containerClient
         } else {
             blobServiceClient.createBlobContainer(blobContainer)
         }
