@@ -90,11 +90,6 @@ class DWServiceTest {
         dwService = DWService(tempFolder!!.toPath(), 19, TestSink(), TestSink(), {}, emptyList())
     }
 
-    @AfterTest
-    fun tearDown() {
-        dwService.close()
-    }
-
     @Test
     fun `Test writing files`() {
         generateTestData().forEach { dwService.addEvent(it, mock {}) }
