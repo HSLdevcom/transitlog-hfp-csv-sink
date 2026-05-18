@@ -41,6 +41,10 @@ jar {
     }
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 test {
     useJUnitPlatform()
 }
