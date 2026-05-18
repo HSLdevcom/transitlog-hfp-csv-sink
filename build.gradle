@@ -1,11 +1,11 @@
 plugins {
     id 'com.gradleup.shadow' version '9.1.0'
     id 'org.jetbrains.kotlin.jvm' version '2.3.0'
-    id 'com.diffplug.spotless' version '6.25.0'
+    id 'com.diffplug.spotless' version '7.2.1'
 }
 
-group 'org.example'
-version '2.0.0'
+group = 'org.example'
+version = '2.0.0'
 
 repositories {
     mavenCentral()
@@ -18,13 +18,17 @@ repositories {
     }
 }
 
+kotlin {
+    jvmToolchain(25)
+}
+
 spotless {
     kotlin {
-        ktfmt('0.44').kotlinlangStyle()
+        ktfmt('0.55').kotlinlangStyle()
     }
 
     kotlinGradle {
-        ktfmt('0.44').kotlinlangStyle()
+        ktfmt('0.55').kotlinlangStyle()
     }
 }
 
@@ -39,10 +43,6 @@ jar {
             'Implementation-Version': project.version
         )
     }
-}
-
-kotlin {
-    jvmToolchain(25)
 }
 
 test {
