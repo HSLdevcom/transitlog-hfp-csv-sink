@@ -24,7 +24,8 @@ jobs:
           java-version: '25'
           cache: gradle
       - name: Run tests
-        run: ./gradlew test
+        timeout-minutes: 10
+        run: ./gradlew test --no-daemon --info
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build shadow JAR

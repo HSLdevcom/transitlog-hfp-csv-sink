@@ -10,6 +10,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlin.random.Random
 import kotlin.test.BeforeTest
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
@@ -87,6 +88,11 @@ class DWServiceTest {
     @BeforeTest
     fun setup() {
         dwService = DWService(tempFolder!!.toPath(), 19, TestSink(), TestSink(), {}, emptyList())
+    }
+
+    @AfterTest
+    fun tearDown() {
+        dwService.close()
     }
 
     @Test
