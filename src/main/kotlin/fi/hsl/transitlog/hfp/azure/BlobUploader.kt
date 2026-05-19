@@ -10,26 +10,29 @@ import mu.KotlinLogging
 
 private const val BUFFER_SIZE = 65536
 
-class BlobUploader private constructor(
+class BlobUploader
+private constructor(
     private val blobServiceClient: BlobServiceClient,
     private val blobContainer: String
 ) {
     private val log = KotlinLogging.logger {}
 
     companion object {
-        fun withDefaultAzureCredential(blobAccountName: String, blobContainer: String): BlobUploader {
-            val client = BlobServiceClientBuilder()
-                .endpoint("https://$blobAccountName.blob.core.windows.net")
-                .credential(DefaultAzureCredentialBuilder().build())
-                .buildClient()
+        fun withDefaultAzureCredential(
+            blobAccountName: String,
+            blobContainer: String
+        ): BlobUploader {
+            val client =
+                BlobServiceClientBuilder()
+                    .endpoint("https://$blobAccountName.blob.core.windows.net")
+                    .credential(DefaultAzureCredentialBuilder().build())
+                    .buildClient()
 
             return BlobUploader(client, blobContainer)
         }
 
         fun withConnectionString(connectionString: String, blobContainer: String): BlobUploader {
-            val client = BlobServiceClientBuilder()
-                .connectionString(connectionString)
-                .buildClient()
+            val client = BlobServiceClientBuilder().connectionString(connectionString).buildClient()
 
             return BlobUploader(client, blobContainer)
         }
