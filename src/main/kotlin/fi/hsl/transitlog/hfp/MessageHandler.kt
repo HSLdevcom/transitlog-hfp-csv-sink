@@ -27,15 +27,15 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
     IMessageHandler {
     private val config = pulsarApplicationContext.config!!
 
-    private val connectionString = config.getString("application.blobConnectionString")
+    private val blobAccountName = config.getString("application.blobAccountName")
 
     private val sinkType = pulsarApplicationContext.config!!.getString("application.sinkType")
 
     private val sink =
         if ("azure" == sinkType) {
             AzureSink(
-                BlobUploader(
-                    connectionString,
+                BlobUploader.withDefaultAzureCredential(
+                    blobAccountName,
                     pulsarApplicationContext.config!!.getString("application.blobContainer")
                 )
             )
@@ -47,8 +47,8 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
         if ("azure" == sinkType) {
             // Uploads to private container that is not accessible without authentication
             AzureSink(
-                BlobUploader(
-                    connectionString,
+                BlobUploader.withDefaultAzureCredential(
+                    blobAccountName,
                     pulsarApplicationContext.config!!.getString("application.blobContainerPrivate")
                 )
             )

@@ -38,7 +38,7 @@ class BlobUploaderTest {
         ThreadLocalRandom.current().nextBytes(data)
         Files.write(testFile, data)
 
-        val uploader = BlobUploader(connString, "test")
+        val uploader = BlobUploader.withConnectionString(connString, "test")
         // Don't add tags to blob because Azurite emulator does not support them
         val uploadedBlobName = uploader.uploadFromFile(testFile)
 
