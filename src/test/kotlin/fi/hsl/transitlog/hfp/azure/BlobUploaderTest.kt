@@ -1,25 +1,24 @@
 package fi.hsl.transitlog.hfp.azure
 
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import org.junit.rules.TemporaryFolder
-import org.testcontainers.containers.GenericContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.utility.DockerImageName
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.test.assertEquals
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.utility.DockerImageName
 
 @Testcontainers
 class BlobUploaderTest {
-    @TempDir
-    lateinit var tempDir: Path
+    @TempDir lateinit var tempDir: Path
 
     @Container
-    val azurite = GenericContainer(DockerImageName.parse("mcr.microsoft.com/azure-storage/azurite"))
+    val azurite =
+        GenericContainer(DockerImageName.parse("mcr.microsoft.com/azure-storage/azurite"))
             .withCommand("azurite-blob --blobHost 0.0.0.0 --blobPort 10000")
             .withExposedPorts(10000)
 
@@ -27,7 +26,8 @@ class BlobUploaderTest {
 
     @BeforeEach
     fun generateConnString() {
-        connString = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://${azurite.host}:${azurite.firstMappedPort}/devstoreaccount1;"
+        connString =
+            "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://${azurite.host}:${azurite.firstMappedPort}/devstoreaccount1;"
     }
 
     @Test
@@ -38,8 +38,8 @@ class BlobUploaderTest {
         ThreadLocalRandom.current().nextBytes(data)
         Files.write(testFile, data)
 
-        val uploader = BlobUploader(connString, "test")
-        //Don't add tags to blob because Azurite emulator does not support them
+        val uploader = BlobUploader.withConnectionString(connString, "test")
+        // Don't add tags to blob because Azurite emulator does not support them
         val uploadedBlobName = uploader.uploadFromFile(testFile)
 
         assertEquals("test.dat", uploadedBlobName)
