@@ -136,6 +136,8 @@ class DWService(
                             log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
                             ackMsgIds.forEach(msgAcknowledger)
                             log.debug { "Messages written to ${dwFile.path} acknowledged" }
+                        } catch (e: Exception) {
+                            log.error(e) { "Failed to upload file ${dwFile.path}" }
                         }
                     }
                 }
