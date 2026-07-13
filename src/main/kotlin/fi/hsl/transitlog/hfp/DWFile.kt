@@ -30,7 +30,8 @@ private constructor(
     val blobName: String,
     private val csvHeader: List<String>,
     private val eventType: Hfp.Topic.EventType,
-    compressionLevel: Int
+    compressionLevel: Int,
+    private val uploadAfterNotModified: Duration
 ) : AutoCloseable {
     companion object {
         private const val WRITE_BUFFER_SIZE = 32768 // 32KiB
@@ -119,7 +120,7 @@ private constructor(
     // (files are created based on the time that the HFP message was _received_ and we assume that
     // are not long gaps between messages)
     // TODO: this should be configurable
-    fun isReadyForUpload(): Boolean = getLastModifiedAgo() > Duration.ofMinutes(15)
+    fun isReadyForUpload(): Boolean = getLastModifiedAgo() >= uploadAfterNotModified
 
     /** Returns metadata about the file contents. Can be used as blob metadata */
     fun getMetadata(): Map<String, String> {
@@ -161,8 +162,21 @@ private constructor(
     class FileFactory(
         private val dataDirectory: Path,
         private val compressionLevel: Int,
+        private val uploadAfterNotModified: Duration,
         private val validators: List<EventValidator> = emptyList()
     ) {
+        init {
+            val bucketMinutes = uploadAfterNotModified.toMinutes()
+
+            require(bucketMinutes > 0) {
+                "uploadAfterNotModified must be at least 1 minute"
+            }
+
+            require(60 % bucketMinutes == 0L) {
+                "uploadAfterNotModified must evenly divide one hour"
+            }
+        }
+
         companion object {
             private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
 
@@ -196,7 +210,8 @@ private constructor(
 
             // Create files that contain 15min data (1 -> data for minutes 0-14, 2 -> data for
             // minutes 15-29 etc.)
-            val minuteNumber = 1 + (localDateTime.minute / 15)
+            val bucketMinutes = uploadAfterNotModified.toMinutes().toInt()
+            val minuteNumber = 1 + (localDateTime.minute / bucketMinutes)
 
             val baseName = "$timestampFormatted-$minuteNumber"
 
@@ -230,7 +245,8 @@ private constructor(
                 blobIdentifier.blobName,
                 blobIdentifier.eventType.csvHeader,
                 blobIdentifier.hfpEventType,
-                compressionLevel
+                compressionLevel,
+                uploadAfterNotModified
             )
         }
     }

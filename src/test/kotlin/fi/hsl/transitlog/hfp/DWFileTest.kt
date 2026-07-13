@@ -81,7 +81,7 @@ class DWFileTest {
     fun `Test writing events`() {
         val hfp = generateTestData()
 
-        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19)
+        val fileFactory = DWFile.FileFactory(Files.createTempDirectory("hfp"), 19, Duration.ofMinutes(15))
 
         val event = Event.parse(hfp[0].topic, hfp[0].payload)
         val identifier = fileFactory.createBlobIdentifier(event)
@@ -115,6 +115,7 @@ class DWFileTest {
             DWFile.FileFactory(
                 Files.createTempDirectory("hfp"),
                 19,
+                Duration.ofMinutes(15),
                 listOf(OdayValidator(tz, 2, 2))
             )
 
