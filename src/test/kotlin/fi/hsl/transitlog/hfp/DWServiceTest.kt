@@ -4,6 +4,7 @@ import fi.hsl.common.hfp.proto.Hfp
 import fi.hsl.transitlog.hfp.utils.TestSink
 import java.io.File
 import java.nio.file.Files
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -87,7 +88,7 @@ class DWServiceTest {
 
     @BeforeTest
     fun setup() {
-        dwService = DWService(tempFolder!!.toPath(), 19, TestSink(), TestSink(), {}, emptyList())
+        dwService = DWService(tempFolder!!.toPath(), 19, Duration.ofMinutes(15), TestSink(), TestSink(), {}, emptyList())
     }
 
     @Test
