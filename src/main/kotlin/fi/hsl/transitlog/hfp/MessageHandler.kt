@@ -82,12 +82,17 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
 
     private val dwService =
         DWService(
-            dataDirectory,
-            pulsarApplicationContext.config!!.getInt("application.zstdCompressionLevel"),
-            sink,
-            privateSink,
-            ::ack,
-            validators
+            dataDirectory = dataDirectory,
+            compressionLevel =
+                pulsarApplicationContext.config!!
+                    .getInt("application.zstdCompressionLevel"),
+            uploadAfterNotModified =
+                pulsarApplicationContext.config!!
+                    .getDuration("application.uploadAfterNotModified"),
+            sink = sink,
+            privateSink = privateSink,
+            msgAcknowledger = ::ack,
+            validators = validators
         )
 
     private var lastHandledMessageTime = System.nanoTime()

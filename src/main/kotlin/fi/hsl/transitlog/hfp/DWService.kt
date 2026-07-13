@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.MessageId
 class DWService(
     dataDirectory: Path,
     compressionLevel: Int,
+    private val uploadAfterNotModified: Duration,
     sink: CSVSink,
     privateSink: CSVSink,
     private val msgAcknowledger: (MessageId) -> Unit,
@@ -53,7 +54,7 @@ class DWService(
     private val msgIds = ConcurrentHashMap<Path, MutableList<MessageId>>()
     private val dwFiles = mutableMapOf<DWFile.FileFactory.BlobIdentifier, DWFile>()
 
-    private val fileFactory = DWFile.FileFactory(dataDirectory, compressionLevel, validators)
+    private val fileFactory = DWFile.FileFactory(dataDirectory, compressionLevel, uploadAfterNotModified, validators)
 
     private inner class DWFileWriterRunnable(
         private val dwFile: DWFile,
@@ -113,16 +114,16 @@ class DWService(
             TimeUnit.SECONDS
         )
 
-        // Setup task for uploading files to Azure every 15 minutes
-        val timeBetweenUploads = Duration.ofMinutes(15)
-
+        // Setup task for uploading files to Azure every {uploadAfterNotModified}
+        val timeBetweenUploads = uploadAfterNotModified
         val initialDelay = getInitialDelayForUpload(timeBetweenUploads)
 
         scheduledExecutorService.scheduleAtFixedRate(
             {
                 val dwFilesCopy = dwFiles.toMap()
                 log.info { "Uploading files to blob storage" }
-                for ((key: DWFile.FileFactory.BlobIdentifier, dwFile: DWFile) in dwFilesCopy.entries) {
+                // Redundant upload logic?
+                /*for ((key: DWFile.FileFactory.BlobIdentifier, dwFile: DWFile) in dwFilesCopy.entries) {
                     if (dwFile.isReadyForUpload()) {
                         try {
                             //Close file for writing
@@ -140,7 +141,7 @@ class DWService(
                             log.error(e) { "Failed to upload file ${dwFile.path}" }
                         }
                     }
-                }
+                }*/
 
                 var filesUploaded = 0
 
@@ -209,21 +210,37 @@ class DWService(
 
                 log.info { "Done uploading files to blob storage" }
             },
-            initialDelay.seconds,
-            timeBetweenUploads.seconds,
-            TimeUnit.SECONDS
+            initialDelay.toMillis(),
+            timeBetweenUploads.toMillis(),
+            TimeUnit.MILLISECONDS
         )
     }
 
-    private fun getInitialDelayForUpload(timeBetweenUploads: Duration): Duration {
-        val now = ZonedDateTime.now()
-        var initialUploadTime = now.withMinute(15)
-
-        while (initialUploadTime.isBefore(now)) {
-            initialUploadTime = initialUploadTime.plusNanos(timeBetweenUploads.toNanos())
+    private fun getInitialDelayForUpload(interval: Duration): Duration {
+        require(!interval.isZero && !interval.isNegative) {
+            "Upload interval must be positive"
         }
 
-        return Duration.ofMillis(now.until(initialUploadTime, ChronoUnit.MILLIS))
+        val now = ZonedDateTime.now()
+        val startOfHour = now.withMinute(0).withSecond(0).withNano(0)
+
+        val elapsedSinceHour = Duration.between(startOfHour, now)
+        val completedIntervals =
+            elapsedSinceHour.toNanos() / interval.toNanos()
+
+        var nextUploadTime =
+            startOfHour.plusNanos(
+                (completedIntervals + 1) * interval.toNanos()
+            )
+
+        // For intervals that do not divide evenly into an hour,
+        // restart alignment at the beginning of the next hour.
+        val startOfNextHour = startOfHour.plusHours(1)
+        if (nextUploadTime.isAfter(startOfNextHour)) {
+            nextUploadTime = startOfNextHour
+        }
+
+        return Duration.between(now, nextUploadTime)
     }
 
     private fun getDWFile(event: IEvent): DWFile =
