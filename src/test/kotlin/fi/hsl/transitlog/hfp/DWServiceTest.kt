@@ -18,9 +18,8 @@ import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 import org.apache.pulsar.client.api.MessageId
 import org.junit.jupiter.api.io.TempDir
-import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.on
+import org.mockito.kotlin.whenever
 
 @ExperimentalTime
 class DWServiceTest {
@@ -106,8 +105,11 @@ class DWServiceTest {
 
     @Test
     fun `Test writing files`() {
+        val messageId = mock<MessageId>()
+        whenever(messageId.toByteArray()).thenReturn(byteArrayOf(1))
+
         generateTestData().forEach {
-            dwService.addEvent(it, mock<MessageId> { on { toByteArray() } doReturn byteArrayOf(1) })
+            dwService.addEvent(it, messageId)
         }
 
         Thread.sleep(30000)
