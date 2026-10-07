@@ -15,6 +15,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.ZoneId
+import java.util.concurrent.CompletableFuture
 import kotlin.time.ExperimentalTime
 import mu.KotlinLogging
 import org.apache.pulsar.client.api.Message
@@ -102,15 +103,15 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
 
     fun getLastAcknowledgedMessageTime(): Long = lastAcknowledgedMessageTime
 
-    private fun ack(messageId: MessageId) {
-        pulsarApplicationContext.consumer!!
+    private fun ack(messageId: MessageId): CompletableFuture<Void> {
+        return pulsarApplicationContext.consumer!!
             .acknowledgeAsync(messageId)
-            .exceptionally { throwable ->
-                // TODO: should we stop the application when ack fails?
-                log.error("Failed to ack Pulsar message", throwable)
-                null
-            }
             .thenRun { lastAcknowledgedMessageTime = System.nanoTime() }
+            .whenComplete { _, throwable ->
+                if (throwable != null) {
+                    log.error("Failed to ack Pulsar message", throwable)
+                }
+            }
     }
 
     override fun handleMessage(msg: Message<Any>) {

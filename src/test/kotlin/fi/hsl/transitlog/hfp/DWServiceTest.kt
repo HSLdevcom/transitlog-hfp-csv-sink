@@ -9,14 +9,18 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.concurrent.CompletableFuture
 import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
+import org.apache.pulsar.client.api.MessageId
 import org.junit.jupiter.api.io.TempDir
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.on
 
 @ExperimentalTime
 class DWServiceTest {
@@ -88,12 +92,23 @@ class DWServiceTest {
 
     @BeforeTest
     fun setup() {
-        dwService = DWService(tempFolder!!.toPath(), 19, Duration.ofMinutes(15), TestSink(), TestSink(), {}, emptyList())
+        dwService =
+            DWService(
+                tempFolder!!.toPath(),
+                19,
+                Duration.ofMinutes(15),
+                TestSink(),
+                TestSink(),
+                { CompletableFuture.completedFuture(null) },
+                emptyList()
+            )
     }
 
     @Test
     fun `Test writing files`() {
-        generateTestData().forEach { dwService.addEvent(it, mock {}) }
+        generateTestData().forEach {
+            dwService.addEvent(it, mock<MessageId> { on { toByteArray() } doReturn byteArrayOf(1) })
+        }
 
         Thread.sleep(30000)
 
