@@ -17,7 +17,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runTestsInsideDocker: true
+      runTestsInsideDocker: false
+      hasIntegrationTests: true
     secrets: inherit # zizmor: ignore[secrets-inherit]
 
   publish-edge-tag:

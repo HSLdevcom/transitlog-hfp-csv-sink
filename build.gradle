@@ -53,6 +53,17 @@ jar {
 
 test {
     useJUnitPlatform()
+    exclude '**/BlobUploaderTest.class'
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs tests that require Docker.'
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    include '**/BlobUploaderTest.class'
+    shouldRunAfter test
 }
 
 dependencies {
