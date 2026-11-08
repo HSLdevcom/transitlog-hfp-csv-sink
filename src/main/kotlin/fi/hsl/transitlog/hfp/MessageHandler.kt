@@ -36,7 +36,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
             AzureSink(
                 BlobUploader.withDefaultAzureCredential(
                     blobAccountName,
-                    pulsarApplicationContext.config!!.getString("application.blobContainer")
+                    pulsarApplicationContext.config!!.getString("application.blobContainer"),
                 )
             )
         } else {
@@ -49,7 +49,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
             AzureSink(
                 BlobUploader.withDefaultAzureCredential(
                     blobAccountName,
-                    pulsarApplicationContext.config!!.getString("application.blobContainerPrivate")
+                    pulsarApplicationContext.config!!.getString("application.blobContainerPrivate"),
                 )
             )
         } else {
@@ -64,7 +64,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
                 it.add(
                     TimestampValidator(
                         config.getDuration("validator.tst.maxPast"),
-                        config.getDuration("validator.tst.maxFuture")
+                        config.getDuration("validator.tst.maxFuture"),
                     )
                 )
             }
@@ -74,7 +74,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
                     OdayValidator(
                         ZoneId.of("Europe/Helsinki"),
                         config.getInt("validator.oday.maxPast"),
-                        config.getInt("validator.oday.maxFuture")
+                        config.getInt("validator.oday.maxFuture"),
                     )
                 )
             }
@@ -87,7 +87,7 @@ class MessageHandler(private val pulsarApplicationContext: PulsarApplicationCont
             sink,
             privateSink,
             ::ack,
-            validators
+            validators,
         )
 
     private var lastHandledMessageTime = System.nanoTime()

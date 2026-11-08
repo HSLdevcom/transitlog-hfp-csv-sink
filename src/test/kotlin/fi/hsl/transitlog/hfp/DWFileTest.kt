@@ -115,7 +115,7 @@ class DWFileTest {
             DWFile.FileFactory(
                 Files.createTempDirectory("hfp"),
                 19,
-                listOf(OdayValidator(tz, 2, 2))
+                listOf(OdayValidator(tz, 2, 2)),
             )
 
         val event =
@@ -125,7 +125,7 @@ class DWFileTest {
                 eventType = "VP",
                 journeyType = "journey",
                 receivedAt = Instant.now(),
-                oday = ZonedDateTime.now(tz).toLocalDate()
+                oday = ZonedDateTime.now(tz).toLocalDate(),
             )
 
         val id1 = fileFactory.createBlobIdentifier(event)
@@ -141,7 +141,7 @@ class DWFileTest {
                     eventType = "VP",
                     journeyType = "journey",
                     receivedAt = Instant.now(),
-                    oday = ZonedDateTime.now(tz).toLocalDate()
+                    oday = ZonedDateTime.now(tz).toLocalDate(),
                 )
             )
 

@@ -9,7 +9,7 @@ private val log = KotlinLogging.logger {}
 class OdayValidator(
     private val timezone: ZoneId,
     private val maxPast: Int,
-    private val maxFuture: Int
+    private val maxFuture: Int,
 ) : EventValidator {
     override fun isValidEvent(event: IEvent): Boolean {
         if (event.oday == null) {

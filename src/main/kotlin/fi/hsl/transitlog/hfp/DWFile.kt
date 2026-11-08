@@ -30,7 +30,7 @@ private constructor(
     val blobName: String,
     private val csvHeader: List<String>,
     private val eventType: Hfp.Topic.EventType,
-    compressionLevel: Int
+    compressionLevel: Int,
 ) : AutoCloseable {
     companion object {
         private const val WRITE_BUFFER_SIZE = 32768 // 32KiB
@@ -41,11 +41,11 @@ private constructor(
             OutputStreamWriter(
                 ZstdCompressorOutputStream(
                     BufferedOutputStream(Files.newOutputStream(path), WRITE_BUFFER_SIZE),
-                    compressionLevel
+                    compressionLevel,
                 ),
-                StandardCharsets.UTF_8
+                StandardCharsets.UTF_8,
             ),
-            CSVFormat.RFC4180.withHeader(*csvHeader.toTypedArray())
+            CSVFormat.RFC4180.withHeader(*csvHeader.toTypedArray()),
         )
     private var open: Boolean = true
     private var lastModified: Long = System.nanoTime()
@@ -66,8 +66,7 @@ private constructor(
             }
         ) { ievent ->
             val bytes =
-                (ievent.eventType?.toByteArray(StandardCharsets.UTF_8)
-                    ?: byteArrayOf()) +
+                (ievent.eventType?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf()) +
                     ievent.tst.toInstant().toEpochMilli().toBigInteger().toByteArray() +
                     (ievent.uniqueVehicleId?.toByteArray(StandardCharsets.UTF_8) ?: byteArrayOf())
             return@Deduplicator MurmurHash3.hash128x64(bytes)[0]
@@ -161,7 +160,7 @@ private constructor(
     class FileFactory(
         private val dataDirectory: Path,
         private val compressionLevel: Int,
-        private val validators: List<EventValidator> = emptyList()
+        private val validators: List<EventValidator> = emptyList(),
     ) {
         companion object {
             private val DATE_HOUR_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")
@@ -176,7 +175,7 @@ private constructor(
             val eventType: EventType,
             val hfpEventType: Hfp.Topic.EventType,
             val private: Boolean,
-            val invalid: Boolean
+            val invalid: Boolean,
         ) {
             val blobName =
                 "${baseName}_utc_${hfpEventType}${if (private) { "_private" } else { "" }}${if (invalid) { "_invalid" } else { "" }}.csv.zst"
@@ -209,9 +208,8 @@ private constructor(
             val eventType =
                 EventType.getEventType(
                     Hfp.Topic.JourneyType.valueOf(event.journeyType!!),
-                    hfpEventType
-                )
-                    ?: EventType.OtherEvent
+                    hfpEventType,
+                ) ?: EventType.OtherEvent
 
             return BlobIdentifier(baseName, eventType, hfpEventType, private, invalid)
         }
@@ -230,7 +228,7 @@ private constructor(
                 blobIdentifier.blobName,
                 blobIdentifier.eventType.csvHeader,
                 blobIdentifier.hfpEventType,
-                compressionLevel
+                compressionLevel,
             )
         }
     }

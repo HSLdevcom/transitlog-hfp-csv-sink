@@ -50,7 +50,7 @@ data class Event(
     override val route: String? = null,
     override val occu: Int? = null,
     override val seq: Int? = null,
-    override val drType: Int? = null
+    override val drType: Int? = null,
 ) : IEvent() {
     companion object {
         fun parse(hfpTopic: Hfp.Topic, hfpPayload: Hfp.Payload): Event {
@@ -261,7 +261,7 @@ data class Event(
                     hfpPayload.drType
                 } else {
                     null
-                }
+                },
             )
         }
     }

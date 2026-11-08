@@ -13,14 +13,14 @@ private const val BUFFER_SIZE = 65536
 class BlobUploader
 private constructor(
     private val blobServiceClient: BlobServiceClient,
-    private val blobContainer: String
+    private val blobContainer: String,
 ) {
     private val log = KotlinLogging.logger {}
 
     companion object {
         fun withDefaultAzureCredential(
             blobAccountName: String,
-            blobContainer: String
+            blobContainer: String,
         ): BlobUploader {
             val client =
                 BlobServiceClientBuilder()
@@ -51,7 +51,7 @@ private constructor(
     fun uploadFromFile(
         path: Path,
         blobName: String = path.fileName.toString(),
-        metadata: Map<String, String> = emptyMap()
+        metadata: Map<String, String> = emptyMap(),
     ): String {
         log.info { "Uploading $path to blob $blobName" }
 

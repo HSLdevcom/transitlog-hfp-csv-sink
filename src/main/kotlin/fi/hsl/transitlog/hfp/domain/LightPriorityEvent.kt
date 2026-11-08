@@ -64,7 +64,7 @@ data class LightPriorityEvent(
     val tlpLineConfigId: Int? = null,
     val tlpPointConfigId: Int? = null,
     val tlpFrequency: Int? = null,
-    val tlpProtocol: String? = null
+    val tlpProtocol: String? = null,
 ) : IEvent() {
     companion object {
         fun parse(hfpTopic: Hfp.Topic, hfpPayload: Hfp.Payload): LightPriorityEvent {
@@ -340,7 +340,7 @@ data class LightPriorityEvent(
                     hfpPayload.tlpProtocol
                 } else {
                     null
-                }
+                },
             )
         }
     }

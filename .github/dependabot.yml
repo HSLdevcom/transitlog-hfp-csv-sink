@@ -1,14 +1,35 @@
 version: 2
 updates:
-  - package-ecosystem: "gradle"
+  - package-ecosystem: gradle
     directory: "/"
     schedule:
-      interval: "monthly"
-    target-branch: "develop"
-    open-pull-requests-limit: 2
-  - package-ecosystem: "github-actions"
+      interval: daily
+    open-pull-requests-limit: 20
+    cooldown:
+      default-days: 7
+      semver-patch-days: 30
+      semver-minor-days: 60
+      semver-major-days: 90
+
+
+  - package-ecosystem: docker
     directory: "/"
     schedule:
-      interval: "monthly"
-    target-branch: "develop"
-    open-pull-requests-limit: 2
+      interval: daily
+    open-pull-requests-limit: 20
+    cooldown:
+      default-days: 7
+      semver-patch-days: 30
+      semver-minor-days: 60
+      semver-major-days: 90
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 20
+    cooldown:
+      default-days: 7
+      semver-patch-days: 30
+      semver-minor-days: 60
+      semver-major-days: 90

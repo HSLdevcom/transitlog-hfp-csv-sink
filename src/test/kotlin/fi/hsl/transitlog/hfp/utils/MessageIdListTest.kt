@@ -38,7 +38,7 @@ class MessageIdListTest {
                     (i shr 0).toByte(),
                     (i shr 8).toByte(),
                     (i shr 16).toByte(),
-                    (i shr 24).toByte()
+                    (i shr 24).toByte(),
                 )
             messageIdList.addId(bytes)
             uncompressed.writeBytes(bytes)

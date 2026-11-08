@@ -1,4 +1,4 @@
-# transitlog-hfp-csv-sink [![Test and create Docker image](https://github.com/HSLdevcom/transitlog-hfp-csv-sink/actions/workflows/test-and-build.yml/badge.svg)](https://github.com/HSLdevcom/transitlog-hfp-csv-sink/actions/workflows/test-and-build.yml)
+# transitlog-hfp-csv-sink [![CI/CD](https://github.com/HSLdevcom/transitlog-hfp-csv-sink/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/HSLdevcom/transitlog-hfp-csv-sink/actions/workflows/ci-cd.yml)
 
 transitlog-hfp-csv-sink is an application for saving [HFP data](https://digitransit.fi/en/developers/apis/4-realtime-api/vehicle-positions/) to Blob Storage in compressed CSV files.
 

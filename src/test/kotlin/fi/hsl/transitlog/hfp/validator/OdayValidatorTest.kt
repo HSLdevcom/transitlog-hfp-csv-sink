@@ -55,7 +55,7 @@ class OdayValidatorTest {
                 time,
                 receivedAt = time.toInstant(),
                 oday = null,
-                journeyType = "journey"
+                journeyType = "journey",
             )
 
         assertFalse { odayValidator.isValidEvent(event) }

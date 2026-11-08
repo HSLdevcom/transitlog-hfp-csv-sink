@@ -28,7 +28,7 @@ class DWService(
     sink: CSVSink,
     privateSink: CSVSink,
     private val msgAcknowledger: (MessageId) -> Unit,
-    validators: List<EventValidator> = emptyList()
+    validators: List<EventValidator> = emptyList(),
 ) {
     companion object {
         private const val MAX_QUEUE_SIZE = 750_000
@@ -43,7 +43,7 @@ class DWService(
     private val fileWriterExecutorService =
         Executors.newFixedThreadPool(
             (Runtime.getRuntime().availableProcessors() * 1.5).roundToInt(),
-            DaemonThreadFactory
+            DaemonThreadFactory,
         )
     private val scheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor(DaemonThreadFactory)
@@ -57,7 +57,7 @@ class DWService(
 
     private inner class DWFileWriterRunnable(
         private val dwFile: DWFile,
-        private val messages: List<Pair<IEvent, MessageId>>
+        private val messages: List<Pair<IEvent, MessageId>>,
     ) : Runnable {
         override fun run() {
             val msgIdList = msgIds.computeIfAbsent(dwFile.path) { LinkedList<MessageId>() }
@@ -110,7 +110,7 @@ class DWService(
             },
             15,
             15,
-            TimeUnit.SECONDS
+            TimeUnit.SECONDS,
         )
 
         // Setup task for uploading files to Azure every 15 minutes
@@ -122,18 +122,30 @@ class DWService(
             {
                 val dwFilesCopy = dwFiles.toMap()
                 log.info { "Uploading files to blob storage" }
-                for ((key: DWFile.FileFactory.BlobIdentifier, dwFile: DWFile) in dwFilesCopy.entries) {
+                for ((key: DWFile.FileFactory.BlobIdentifier, dwFile: DWFile) in
+                    dwFilesCopy.entries) {
                     if (dwFile.isReadyForUpload()) {
                         try {
-                            //Close file for writing
+                            // Close file for writing
                             dwFile.close()
 
-                            //Upload file to Blob Storage
-                            (if (dwFile.private) { privateSink } else { sink }).upload(dwFile.path, name = dwFile.blobName, metadata = dwFile.getMetadata())
-                            
-                            //Acknowledge all messages that were in the file
+                            // Upload file to Blob Storage
+                            (if (dwFile.private) {
+                                    privateSink
+                                } else {
+                                    sink
+                                })
+                                .upload(
+                                    dwFile.path,
+                                    name = dwFile.blobName,
+                                    metadata = dwFile.getMetadata(),
+                                )
+
+                            // Acknowledge all messages that were in the file
                             val ackMsgIds = msgIds[dwFile.path]!!
-                            log.info { "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}" }
+                            log.info {
+                                "Acknowledging ${ackMsgIds.size} messages which were written to file ${dwFile.path}"
+                            }
                             ackMsgIds.forEach(msgAcknowledger)
                             log.debug { "Messages written to ${dwFile.path} acknowledged" }
                         } catch (e: Exception) {
@@ -164,7 +176,7 @@ class DWService(
                                 .upload(
                                     dwFile.path,
                                     name = dwFile.blobName,
-                                    metadata = dwFile.getMetadata()
+                                    metadata = dwFile.getMetadata(),
                                 )
 
                             // Acknowledge all messages that were in the file
@@ -211,7 +223,7 @@ class DWService(
             },
             initialDelay.seconds,
             timeBetweenUploads.seconds,
-            TimeUnit.SECONDS
+            TimeUnit.SECONDS,
         )
     }
 
