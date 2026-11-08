@@ -2,6 +2,7 @@ plugins {
     id 'com.gradleup.shadow' version '9.1.0'
     id 'org.jetbrains.kotlin.jvm' version '2.3.0'
     id 'com.diffplug.spotless' version '7.2.1'
+    id 'jacoco'
 }
 
 group = 'org.example'
@@ -64,6 +65,12 @@ tasks.register('integrationTest', Test) {
     useJUnitPlatform()
     include '**/BlobUploaderTest.class'
     shouldRunAfter test
+}
+
+tasks.named('jacocoTestReport') {
+    reports {
+        xml.required = true
+    }
 }
 
 dependencies {
