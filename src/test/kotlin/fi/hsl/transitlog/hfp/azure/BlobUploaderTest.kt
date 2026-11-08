@@ -27,7 +27,7 @@ class BlobUploaderTest {
     @BeforeEach
     fun generateConnString() {
         connString =
-            "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://${azurite.host}:${azurite.firstMappedPort}/devstoreaccount1;"
+            "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://${azurite.host}:${azurite.firstMappedPort}/devstoreaccount1;" // gitleaks:allow
     }
 
     @Test
