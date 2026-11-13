@@ -92,18 +92,12 @@ class DWService(
                 val messagesByFile = messages.groupBy { (hfpData, _) -> getDWFile(hfpData) }
                 // Write messages to files
                 val completionService = ExecutorCompletionService<Void>(fileWriterExecutorService)
-                messagesByFile.map { (dwFile, messages) ->
+                messagesByFile.forEach { (dwFile, messages) ->
                     completionService.submit(DWFileWriterRunnable(dwFile, messages), null)
                 }
 
                 // Wait for writing to be done
-                val duration = measureTime {
-                    try {
-                        completionService.take().get()
-                    } catch (e: Exception) {
-                        log.warn { "Exception while waiting for messages to be written: $e" }
-                    }
-                }
+                val duration = measureTime { awaitAll(completionService, messagesByFile.size) }
                 log.info {
                     "Wrote ${messages.size} messages to CSV files in ${duration.inWholeMilliseconds} ms"
                 }
@@ -278,3 +272,22 @@ class DWService(
         }
     }
 }
+
+/**
+ * Waits for exactly [submitted] tasks of [completionService] to finish.
+ *
+ * Taking a result when nothing was submitted blocks forever: one 15-second tick without any message
+ * (e.g. while upstream restarts) used to park the single scheduler thread for good, which also
+ * stopped the uploads, filled the message queue and blocked the Pulsar consumer.
+ */
+internal fun <T> awaitAll(completionService: CompletionService<T>, submitted: Int) {
+    repeat(submitted) {
+        try {
+            completionService.take().get()
+        } catch (e: Exception) {
+            dwServiceLog.warn { "Exception while waiting for messages to be written: $e" }
+        }
+    }
+}
+
+private val dwServiceLog = KotlinLogging.logger {}
