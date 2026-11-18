@@ -12,4 +12,4 @@ WORKDIR /usr/app
 COPY --from=build /usr/app/build/libs/transitlog-hfp-csv-sink.jar /usr/app/transitlog-hfp-csv-sink.jar
 RUN chown 10001:10001 /usr/app
 USER 10001:10001
-ENTRYPOINT ["java", "-XX:InitialRAMPercentage=10.0", "-XX:MaxRAMPercentage=95.0", "-jar", "/usr/app/transitlog-hfp-csv-sink.jar"]
+ENTRYPOINT ["java", "-XX:-UseBASE64Intrinsics", "-XX:InitialRAMPercentage=10.0", "-XX:MaxRAMPercentage=95.0", "-jar", "/usr/app/transitlog-hfp-csv-sink.jar"]
