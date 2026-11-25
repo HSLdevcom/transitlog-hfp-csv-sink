@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   ci-cd:
-    uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-kotlin.yml@234db0afad207e5af97e17e597b9f0933d22b4c0 # main
+    uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-kotlin.yml@234db0afad207e5af97e17e597b9f0933d22b4c0 # 1.1.0
     permissions:
       contents: read
       packages: read
